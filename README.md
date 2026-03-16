@@ -93,6 +93,7 @@ Fastest way to get started using pre-built multi-platform image:
        environment:
          - NODE_ENV=production
          - JWT_SECRET=CHANGE_THIS_TO_SECURE_RANDOM_STRING_MIN_32_CHARS
+         - TZ=Europe/Paris  # Your timezone — used for day/week boundaries & notifications
        volumes:
          - ./data:/app/data
        restart: unless-stopped
