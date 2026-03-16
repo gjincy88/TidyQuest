@@ -1,8 +1,8 @@
-# TidyQuest v0.4.0-beta Release Notes
+# TidyQuest v0.4.0 Release Notes
 
-> **Branch:** `release/beta` | **Date:** 2026-03-15
+> **Date:** 2026-03-16
 
-This beta release includes 9 new features, a complete UI redesign, security hardening, and community bug fixes. It merges work from 8 feature branches into a unified release for testing.
+This release includes 10 new features, a complete UI redesign, security hardening, and community bug fixes.
 
 ---
 
@@ -115,15 +115,13 @@ None. This release is backward-compatible with v0.3.0 data.
 
 ## Known Limitations
 
-- Beta release: not yet published to Docker Hub
 - The `vacationEndDate` per-user is stored but not yet used for auto-disabling vacation
-- ~~ntfy and Telegram cannot both be active simultaneously~~ (fixed: both can now be enabled together)
 
 ---
 
 ## Upgrade from v0.3.0
 
-1. Switch to the `release/beta` branch
+1. Pull the latest `main` branch
 2. Set `JWT_SECRET` environment variable for persistent sessions
 3. Set `TZ` environment variable to your local timezone (e.g. `-e TZ=Europe/Zurich`)
 4. Rebuild and restart the container
