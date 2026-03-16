@@ -3,6 +3,7 @@ import { buildAchievements } from './achievements';
 import { isNotificationTypeEnabled, sendNotification } from './notifications';
 import { calculateHealth } from './health';
 import { getGlobalVacation, getUserVacation, resolveVacation } from './adminHelpers';
+import { localDateStr } from './dateHelpers';
 
 function getUserAchievementStats(userId: number) {
   const user = db.prepare(
@@ -34,61 +35,61 @@ function getUserAchievementStats(userId: number) {
   }
 
   const now = new Date();
-  const dayOfWeek = now.getUTCDay() || 7;
+  const dayOfWeek = now.getDay() || 7;
   const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - dayOfWeek + 1);
-  monday.setUTCHours(0, 0, 0, 0);
+  monday.setDate(now.getDate() - dayOfWeek + 1);
+  monday.setHours(0, 0, 0, 0);
   const weeklyRow = db.prepare(
     "SELECT COUNT(*) as count FROM task_completions WHERE userId = ? AND status = 'approved' AND completedAt >= ?"
   ).get(userId, monday.toISOString()) as { count: number };
 
   // Tasks completed on the most recent weekend (Sat+Sun)
-  const nowDay = now.getUTCDay(); // 0=Sun, 6=Sat
+  const nowDay = now.getDay(); // 0=Sun, 6=Sat
   const daysToLastSat = nowDay === 6 ? 0 : nowDay === 0 ? 1 : nowDay + 1;
   const lastSat = new Date(now);
-  lastSat.setUTCDate(now.getUTCDate() - daysToLastSat);
-  lastSat.setUTCHours(0, 0, 0, 0);
+  lastSat.setDate(now.getDate() - daysToLastSat);
+  lastSat.setHours(0, 0, 0, 0);
   const lastSun = new Date(lastSat);
-  lastSun.setUTCDate(lastSat.getUTCDate() + 1);
-  lastSun.setUTCHours(23, 59, 59, 999);
+  lastSun.setDate(lastSat.getDate() + 1);
+  lastSun.setHours(23, 59, 59, 999);
   const weekendRow = db.prepare(
     "SELECT COUNT(*) as count FROM task_completions WHERE userId = ? AND status = 'approved' AND completedAt >= ? AND completedAt <= ?"
   ).get(userId, lastSat.toISOString(), lastSun.toISOString()) as { count: number };
 
   const allCompletions = db.prepare(
-    "SELECT date(completedAt) as day FROM task_completions WHERE userId = ? AND status = 'approved' GROUP BY date(completedAt) ORDER BY day"
+    "SELECT date(completedAt, 'localtime') as day FROM task_completions WHERE userId = ? AND status = 'approved' GROUP BY date(completedAt, 'localtime') ORDER BY day"
   ).all(userId) as Array<{ day: string }>;
 
-  const parseDayUTC = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
-  const mondayOfUTCDate = (d: Date): Date => {
+  const parseDayLocal = (day: string): Date => new Date(`${day}T00:00:00`);
+  const mondayOfLocalDate = (d: Date): Date => {
     const out = new Date(d);
-    const dow = out.getUTCDay() || 7;
-    out.setUTCDate(out.getUTCDate() - dow + 1);
-    out.setUTCHours(0, 0, 0, 0);
+    const dow = out.getDay() || 7;
+    out.setDate(out.getDate() - dow + 1);
+    out.setHours(0, 0, 0, 0);
     return out;
   };
 
   let perfectWeeks = 0;
   if (allCompletions.length > 0) {
     const daySet = new Set(allCompletions.map((c) => c.day));
-    const firstDay = parseDayUTC(allCompletions[0].day);
-    const startMonday = mondayOfUTCDate(firstDay);
-    const thisMonday = mondayOfUTCDate(now);
+    const firstDay = parseDayLocal(allCompletions[0].day);
+    const startMonday = mondayOfLocalDate(firstDay);
+    const thisMonday = mondayOfLocalDate(now);
     const checkDate = new Date(startMonday);
 
     while (checkDate < thisMonday) {
       let allDays = true;
       for (let d = 0; d < 7; d++) {
         const checkDay = new Date(checkDate);
-        checkDay.setUTCDate(checkDate.getUTCDate() + d);
-        const dayStr = checkDay.toISOString().slice(0, 10);
+        checkDay.setDate(checkDate.getDate() + d);
+        const dayStr = localDateStr(checkDay);
         if (!daySet.has(dayStr)) {
           allDays = false;
           break;
         }
       }
       if (allDays) perfectWeeks++;
-      checkDate.setUTCDate(checkDate.getUTCDate() + 7);
+      checkDate.setDate(checkDate.getDate() + 7);
     }
   }
 

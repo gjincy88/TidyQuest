@@ -3,6 +3,7 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ ./
+COPY package.json /app/package.json
 RUN npm run build
 
 FROM node:22-alpine AS server-build

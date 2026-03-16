@@ -7,3 +7,4 @@ data/*.db-*
 .DS_Store
 projet/
 PROGRESS.md
+.claude/skills/test-beta/.env

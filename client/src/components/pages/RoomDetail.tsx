@@ -38,9 +38,9 @@ function formatFreq(days: number, t: (key: string) => string): string {
 }
 
 function healthColor(value: number): string {
-  if (value >= 70) return '#22C55E';
-  if (value >= 40) return '#F59E0B';
-  return '#EF4444';
+  if (value >= 70) return 'var(--health-green)';
+  if (value >= 40) return 'var(--health-yellow)';
+  return 'var(--health-red)';
 }
 
 function getNextDueDate(lastCompletedAt: string | null, frequencyDays: number): Date {
@@ -52,16 +52,34 @@ function getNextDueDate(lastCompletedAt: string | null, frequencyDays: number): 
 function formatNextDue(lastCompletedAt: string | null, frequencyDays: number, t: (k: string) => string, language?: string): { text: string; color: string } {
   const nextDue = getNextDueDate(lastCompletedAt, frequencyDays);
   const now = new Date();
+
+  // Time-based countdown for tasks due within the next 24 hours
+  const diffMs = nextDue.getTime() - now.getTime();
+  if (diffMs < 0) return { text: t('roomDetail.overdue'), color: 'var(--health-red)' };
+
+  const diffMinutes = Math.ceil(diffMs / (60 * 1000));
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+  const remainingMinutes = Math.ceil((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+
+  if (diffMinutes < 60) {
+    return { text: t('roomDetail.inMinutes').replace('{m}', `${Math.max(1, diffMinutes)}`), color: 'var(--health-yellow)' };
+  }
+  if (diffHours < 24) {
+    const text = remainingMinutes > 0
+      ? t('roomDetail.inHoursMinutes').replace('{h}', `${diffHours}`).replace('{m}', `${remainingMinutes}`)
+      : t('roomDetail.inHours').replace('{h}', `${diffHours}`);
+    return { text, color: 'var(--health-yellow)' };
+  }
+
+  // Day-based display for tasks due further out
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dueStart = new Date(nextDue.getFullYear(), nextDue.getMonth(), nextDue.getDate());
   const diffDays = Math.round((dueStart.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000));
-  if (diffDays < 0) return { text: t('roomDetail.overdue'), color: '#EF4444' };
-  if (diffDays === 0) return { text: t('roomDetail.today'), color: '#F59E0B' };
-  if (diffDays === 1) return { text: t('roomDetail.tomorrow'), color: '#F59E0B' };
+  if (diffDays <= 1) return { text: t('roomDetail.tomorrow'), color: 'var(--health-yellow)' };
   const localeMap: Record<string, string> = { en: 'en-US', fr: 'fr-FR', de: 'de-DE', es: 'es-ES', it: 'it-IT' };
   const locale = localeMap[language || 'en'] || 'en-US';
   const text = nextDue.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-  return { text, color: diffDays <= 7 ? '#F59E0B' : '#22C55E' };
+  return { text, color: diffDays <= 7 ? 'var(--health-yellow)' : 'var(--health-green)' };
 }
 
 type SortKey = 'name' | 'health' | 'effort' | 'frequency' | 'coins' | 'assigned' | 'dueDate';
@@ -270,6 +288,12 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       }
     }
 
+    // Block if task frequency cooldown hasn't elapsed (health > 0 means not yet due)
+    if (task.health > 0 && task.lastCompletedAt) {
+      const { text } = formatNextDue(task.lastCompletedAt, task.frequencyDays, t, language);
+      return { disabled: true, label: text };
+    }
+
     if (task.assignmentMode === 'shared' || task.assignmentMode === 'custom') {
       // In shared/custom mode: disabled only if current user has already completed their part
       const myCompletion = task.sharedCompletions?.find(c => c.userId === currentUserId);
@@ -450,7 +474,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                   {!room.assignedUserId && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--warm-text-light)', minWidth: 58 }}>{t('rooms.assignRoom')}</label>
+                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--warm-text-light)', minWidth: 58 }}>{t('rooms.assignTask')}</label>
                         <select
                           value={editForm.assignmentType}
                           onChange={(e) => setEditForm(f => ({ ...f, assignmentType: e.target.value as 'none' | 'users', assignmentUserIds: [], assignmentMode: 'first' }))}

@@ -33,7 +33,8 @@ function normalizeNotificationTypes(value: unknown): NotificationTypeSettings | 
 }
 
 function readNotificationTypesSetting(): NotificationTypeSettings {
-  const rawTypes = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramNotificationTypes'").get() as any)?.value || '';
+  const rawTypes = (db.prepare("SELECT value FROM app_settings WHERE key = 'notificationTypes'").get() as any)?.value
+    || (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramNotificationTypes'").get() as any)?.value || '';
   if (!rawTypes) return { taskDue: true, rewardRequest: true, achievementUnlocked: true };
   try {
     return normalizeNotificationTypes(JSON.parse(rawTypes)) || { taskDue: true, rewardRequest: true, achievementUnlocked: true };
@@ -201,6 +202,14 @@ router.post('/:id/avatar-upload', upload.single('avatar'), (req: AuthRequest, re
 
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Delete previous avatar file if it exists
+  const prev = db.prepare('SELECT avatarPhotoUrl FROM users WHERE id = ?').get(userId) as any;
+  if (prev?.avatarPhotoUrl) {
+    const oldFilename = path.basename(prev.avatarPhotoUrl);
+    const oldPath = path.join(avatarsDir, oldFilename);
+    try { fs.unlinkSync(oldPath); } catch { /* file may already be gone */ }
   }
 
   const photoUrl = `/api/avatars/${req.file.filename}`;
@@ -472,16 +481,18 @@ router.get('/notifications-config', (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: 'Admin only' });
   }
 
-  const enabled = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramEnabled'").get() as any)?.value === '1';
+  const notificationsEnabled = (db.prepare("SELECT value FROM app_settings WHERE key = 'notificationsEnabled'").get() as any)?.value === '1';
+  const telegramEnabled = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramEnabled'").get() as any)?.value === '1';
   const botToken = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramBotToken'").get() as any)?.value || '';
   const chatId = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramChatId'").get() as any)?.value || '';
-  const notificationTime = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramNotificationTime'").get() as any)?.value || '09:00';
+  const notificationTime = (db.prepare("SELECT value FROM app_settings WHERE key = 'notificationTime'").get() as any)?.value
+    || (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramNotificationTime'").get() as any)?.value || '09:00';
   const notificationTypes = readNotificationTypesSetting();
   const ntfyEnabled = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyEnabled'").get() as any)?.value === '1';
   const ntfyServerUrl = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyServerUrl'").get() as any)?.value || 'https://ntfy.sh';
   const ntfyTopic = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyTopic'").get() as any)?.value || '';
   const ntfyToken = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyToken'").get() as any)?.value || '';
-  res.json({ enabled, chatId, hasToken: !!botToken, notificationTime, notificationTypes, ntfyEnabled, ntfyServerUrl, ntfyTopic, hasNtfyToken: !!ntfyToken });
+  res.json({ notificationsEnabled, telegramEnabled, chatId, hasToken: !!botToken, notificationTime, notificationTypes, ntfyEnabled, ntfyServerUrl, ntfyTopic, hasNtfyToken: !!ntfyToken });
 });
 
 router.put('/notifications-config', (req: AuthRequest, res: Response) => {
@@ -490,8 +501,9 @@ router.put('/notifications-config', (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: 'Admin only' });
   }
 
-  const { enabled, botToken, chatId, notificationTime, notificationTypes, ntfyEnabled, ntfyServerUrl, ntfyTopic, ntfyToken } = req.body as {
-    enabled?: boolean;
+  const { notificationsEnabled, telegramEnabled, botToken, chatId, notificationTime, notificationTypes, ntfyEnabled, ntfyServerUrl, ntfyTopic, ntfyToken } = req.body as {
+    notificationsEnabled?: boolean;
+    telegramEnabled?: boolean;
     botToken?: string;
     chatId?: string;
     notificationTime?: string;
@@ -509,9 +521,13 @@ router.put('/notifications-config', (req: AuthRequest, res: Response) => {
   if (notificationTypes !== undefined && !normalizedTypes) {
     return res.status(400).json({ error: 'notificationTypes is invalid' });
   }
-  if (enabled !== undefined) {
+  if (notificationsEnabled !== undefined) {
+    db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'notificationsEnabled'")
+      .run(notificationsEnabled ? '1' : '0');
+  }
+  if (telegramEnabled !== undefined) {
     db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'telegramEnabled'")
-      .run(enabled ? '1' : '0');
+      .run(telegramEnabled ? '1' : '0');
   }
   if (botToken !== undefined) {
     db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'telegramBotToken'")
@@ -522,11 +538,11 @@ router.put('/notifications-config', (req: AuthRequest, res: Response) => {
       .run(chatId.trim());
   }
   if (normalizedTime) {
-    db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'telegramNotificationTime'")
+    db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'notificationTime'")
       .run(normalizedTime);
   }
   if (normalizedTypes) {
-    db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'telegramNotificationTypes'")
+    db.prepare("UPDATE app_settings SET value = ?, updatedAt = datetime('now') WHERE key = 'notificationTypes'")
       .run(JSON.stringify(normalizedTypes));
   }
   if (ntfyEnabled !== undefined) {
@@ -546,24 +562,33 @@ router.put('/notifications-config', (req: AuthRequest, res: Response) => {
       .run(ntfyToken.trim());
   }
 
-  // Validate ntfy: if enabled, topic is required
+  // Validate: if master is enabled, at least one provider must be enabled
+  const masterNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'notificationsEnabled'").get() as any)?.value === '1';
+  const tgEnabledNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramEnabled'").get() as any)?.value === '1';
   const ntfyEnabledNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyEnabled'").get() as any)?.value === '1';
-  const ntfyTopicNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyTopic'").get() as any)?.value || '';
-  if (ntfyEnabledNow && !ntfyTopicNow) {
-    return res.status(400).json({ error: 'To enable ntfy notifications, a topic is required.' });
+
+  if (masterNow && !tgEnabledNow && !ntfyEnabledNow) {
+    return res.status(400).json({ error: 'At least one notification provider (Telegram or ntfy) must be enabled.' });
   }
 
-  const enabledNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramEnabled'").get() as any)?.value === '1';
+  // Validate telegram: if enabled, token + chatId required
   const tokenNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramBotToken'").get() as any)?.value || '';
   const chatNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramChatId'").get() as any)?.value || '';
-  if (enabledNow && (!tokenNow || !chatNow)) {
-    return res.status(400).json({ error: 'To enable notifications, both Telegram bot token and Telegram chat ID are required.' });
+  if (tgEnabledNow && (!tokenNow || !chatNow)) {
+    return res.status(400).json({ error: 'To enable Telegram, both bot token and chat ID are required.' });
   }
-  const notificationTimeNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'telegramNotificationTime'").get() as any)?.value || '09:00';
+
+  // Validate ntfy: if enabled, topic required
+  const ntfyTopicNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyTopic'").get() as any)?.value || '';
+  if (ntfyEnabledNow && !ntfyTopicNow) {
+    return res.status(400).json({ error: 'To enable ntfy, a topic is required.' });
+  }
+
+  const notificationTimeNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'notificationTime'").get() as any)?.value || '09:00';
   const notificationTypesNow = readNotificationTypesSetting();
   const ntfyServerUrlNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyServerUrl'").get() as any)?.value || 'https://ntfy.sh';
   const ntfyTokenNow = (db.prepare("SELECT value FROM app_settings WHERE key = 'ntfyToken'").get() as any)?.value || '';
-  res.json({ enabled: enabledNow, chatId: chatNow, hasToken: !!tokenNow, notificationTime: notificationTimeNow, notificationTypes: notificationTypesNow, ntfyEnabled: ntfyEnabledNow, ntfyServerUrl: ntfyServerUrlNow, ntfyTopic: ntfyTopicNow, hasNtfyToken: !!ntfyTokenNow });
+  res.json({ notificationsEnabled: masterNow, telegramEnabled: tgEnabledNow, chatId: chatNow, hasToken: !!tokenNow, notificationTime: notificationTimeNow, notificationTypes: notificationTypesNow, ntfyEnabled: ntfyEnabledNow, ntfyServerUrl: ntfyServerUrlNow, ntfyTopic: ntfyTopicNow, hasNtfyToken: !!ntfyTokenNow });
 });
 
 router.post('/notifications-test', async (req: AuthRequest, res: Response) => {

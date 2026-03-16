@@ -5,6 +5,7 @@ import { calculateHealth, getCoinsForEffort } from '../utils/health';
 import { suggestTaskIcon } from '../utils/taskIcons';
 import { notifyAchievementUnlocksForUser } from '../utils/achievementNotifications';
 import { ensureAdmin, getCoinsByEffortConfig, getGlobalVacation, getUserVacation, resolveVacation, isStrictModeEnabled } from '../utils/adminHelpers';
+import { localDateStr } from '../utils/dateHelpers';
 
 const router = Router();
 router.use(authMiddleware);
@@ -60,7 +61,7 @@ function applyApprovedCompletion(
       const doneCount = db.prepare(
         `SELECT COUNT(*) as cnt
          FROM task_completions
-         WHERE taskId = ? AND status = 'approved' AND date(completedAt) = date(?)`
+         WHERE taskId = ? AND status = 'approved' AND date(completedAt, 'localtime') = date(?, 'localtime')`
       ).get(taskId, now) as { cnt: number };
       if (doneCount.cnt >= taskAssignees.length) {
         db.prepare('UPDATE tasks SET lastCompletedAt = ? WHERE id = ?').run(now, taskId);
@@ -76,20 +77,20 @@ function applyApprovedCompletion(
     db.prepare('UPDATE users SET coins = coins + ? WHERE id = ?').run(coins, effectiveUserId);
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(effectiveUserId) as any;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateStr();
     const globalVac = getGlobalVacation();
     const userVac = getUserVacation(effectiveUserId);
     const streakVacation = resolveVacation(globalVac, userVac);
 
     if (!streakVacation.isVacation && user.lastActiveDate !== today) {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const yesterday = localDateStr(new Date(Date.now() - 86400000));
       let keepGapWithoutPenalty = false;
       if (user.lastActiveDate && user.lastActiveDate < yesterday) {
         keepGapWithoutPenalty = true;
-        const start = new Date(`${user.lastActiveDate}T00:00:00.000Z`);
-        const end = new Date(`${yesterday}T00:00:00.000Z`);
+        const start = new Date(`${user.lastActiveDate}T00:00:00`);
+        const end = new Date(`${yesterday}T00:00:00`);
         for (let d = new Date(start.getTime() + 86400000); d <= end; d = new Date(d.getTime() + 86400000)) {
-          const day = d.toISOString().slice(0, 10);
+          const day = localDateStr(d);
           if (hadDueTaskOnDate(day)) {
             keepGapWithoutPenalty = false;
             break;
@@ -127,7 +128,7 @@ router.get('/rooms/:roomId/tasks', (req: AuthRequest, res: Response) => {
         `SELECT tc.id as completionId, tc.taskId, tc.userId, u.displayName, u.avatarColor, u.avatarType, u.avatarPreset, u.avatarPhotoUrl
          FROM task_completions tc
          JOIN users u ON tc.userId = u.id
-         WHERE tc.taskId IN (${taskIds.map(() => '?').join(',')}) AND tc.status = 'approved' AND date(tc.completedAt) = date(?)`
+         WHERE tc.taskId IN (${taskIds.map(() => '?').join(',')}) AND tc.status = 'approved' AND date(tc.completedAt, 'localtime') = date(?, 'localtime')`
       ).all(...taskIds, now) as any[]
     : [];
 
@@ -285,7 +286,7 @@ router.put('/tasks/:id', (req: AuthRequest, res: Response) => {
   const setClauses: string[] = [];
   const params: any[] = [];
 
-  if (name !== undefined) { setClauses.push('name = COALESCE(?, name)'); params.push(name); }
+  if (name !== undefined) { setClauses.push('name = COALESCE(?, name)'); params.push(name); setClauses.push('translationKey = NULL'); }
   if (notes !== undefined) { setClauses.push('notes = ?'); params.push(notes || null); }
   if (frequencyDays !== undefined) { setClauses.push('frequencyDays = COALESCE(?, frequencyDays)'); params.push(frequencyDays); }
   if (effort !== undefined) { setClauses.push('effort = COALESCE(?, effort)'); params.push(effort); }
@@ -379,7 +380,7 @@ router.post('/tasks/:id/complete', (req: AuthRequest, res: Response) => {
 
   // Block if effective user already completed this task today
   const alreadyDoneBySelf = db.prepare(
-    "SELECT id FROM task_completions WHERE taskId = ? AND userId = ? AND status IN ('approved', 'pending') AND date(completedAt) = date(?)"
+    "SELECT id FROM task_completions WHERE taskId = ? AND userId = ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
   ).get(task.id, effectiveUserId, now);
   if (alreadyDoneBySelf) {
     return res.status(409).json({ error: 'already_done_today' });
@@ -388,10 +389,23 @@ router.post('/tasks/:id/complete', (req: AuthRequest, res: Response) => {
   if (task.assignmentMode !== 'shared' && task.assignmentMode !== 'custom') {
     // In 'first' mode: block if someone else already completed today
     const alreadyDoneByOther = db.prepare(
-      "SELECT id FROM task_completions WHERE taskId = ? AND userId != ? AND status IN ('approved', 'pending') AND date(completedAt) = date(?)"
+      "SELECT id FROM task_completions WHERE taskId = ? AND userId != ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
     ).get(task.id, effectiveUserId, now);
     if (alreadyDoneByOther) {
       return res.status(409).json({ error: 'already_done_by_other' });
+    }
+  }
+
+  // Block if frequency cooldown hasn't elapsed (task not yet due)
+  if (task.lastCompletedAt) {
+    const globalVac = getGlobalVacation();
+    const taskAssigneesForVac = db.prepare('SELECT userId FROM task_assignees WHERE taskId = ?').all(task.id) as { userId: number }[];
+    const taskVac = taskAssigneesForVac.length === 1
+      ? resolveVacation(globalVac, getUserVacation(taskAssigneesForVac[0].userId))
+      : globalVac;
+    const currentHealth = calculateHealth(task.lastCompletedAt, task.frequencyDays, taskVac.isVacation, taskVac.startDate);
+    if (currentHealth > 0) {
+      return res.status(409).json({ error: 'not_yet_due', health: currentHealth });
     }
   }
 

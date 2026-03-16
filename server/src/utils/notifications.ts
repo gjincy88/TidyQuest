@@ -34,7 +34,7 @@ const DEFAULT_NOTIFICATION_TYPES: NotificationTypeSettings = {
 };
 
 export function getNotificationTypeSettings(): NotificationTypeSettings {
-  const raw = getSetting('telegramNotificationTypes');
+  const raw = getSetting('notificationTypes') || getSetting('telegramNotificationTypes');
   if (!raw) return DEFAULT_NOTIFICATION_TYPES;
   try {
     const parsed = JSON.parse(raw) as Partial<NotificationTypeSettings>;
@@ -212,6 +212,7 @@ export async function sendNotification(message: string): Promise<{ telegram?: bo
 let lastCheckedMinute: string | null = null;
 
 function isAnyProviderEnabled(): boolean {
+  if (getSetting('notificationsEnabled') !== '1') return false;
   const tg = getTelegramSettings();
   const ntfy = getNtfySettings();
   return (tg.enabled && !!tg.botToken && !!tg.chatId) || (ntfy.enabled && !!ntfy.topic);
@@ -232,7 +233,7 @@ export async function sendDueTaskNotificationsIfNeeded(
   lastCheckedMinute = currentMinute;
 
   const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const notificationTime = normalizeNotificationTime(getSetting('telegramNotificationTime'));
+  const notificationTime = normalizeNotificationTime(getSetting('notificationTime') || getSetting('telegramNotificationTime'));
   if (nowHm !== notificationTime) return;
 
   const today = toLocalIsoDay(now);

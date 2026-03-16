@@ -136,7 +136,8 @@ export const api = {
     apiFetch<{ registrationEnabled: boolean }>('/users/registration-config', { method: 'PUT', body: JSON.stringify(data) }),
   getNotificationsConfig: () =>
     apiFetch<{
-      enabled: boolean;
+      notificationsEnabled: boolean;
+      telegramEnabled: boolean;
       chatId: string;
       hasToken: boolean;
       notificationTime: string;
@@ -147,7 +148,8 @@ export const api = {
       hasNtfyToken: boolean;
     }>('/users/notifications-config'),
   updateNotificationsConfig: (data: {
-    enabled?: boolean;
+    notificationsEnabled?: boolean;
+    telegramEnabled?: boolean;
     botToken?: string;
     chatId?: string;
     notificationTime?: string;
@@ -158,7 +160,8 @@ export const api = {
     ntfyToken?: string;
   }) =>
     apiFetch<{
-      enabled: boolean;
+      notificationsEnabled: boolean;
+      telegramEnabled: boolean;
       chatId: string;
       hasToken: boolean;
       notificationTime: string;
