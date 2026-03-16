@@ -229,6 +229,7 @@ See `.env.example` for all options. Key variables:
 |----------|----------|-------------|
 | `JWT_SECRET` | **Yes** (prod) | Secret for signing JWT tokens (min 32 chars) |
 | `NODE_ENV` | No | `production` or `development` |
+| `TZ` | Recommended | Timezone for day/week boundaries & notifications (e.g. `Europe/Paris`). Defaults to UTC |
 | `PORT` | No | Server port (default: 3000) |
 | `ADMIN_RESET_PASSWORD` | No | One-shot admin password recovery. Set, restart, then remove. |
 
