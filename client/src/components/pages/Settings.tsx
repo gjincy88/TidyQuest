@@ -1160,6 +1160,9 @@ export function Settings({
           ))}
         </div>
       </div>
+      <div style={{ textAlign: 'center', padding: '24px 0 8px', fontSize: 11, color: 'var(--warm-text-muted)', fontWeight: 500 }}>
+        TidyQuest v{__APP_VERSION__}
+      </div>
     </div>
   );
 }
