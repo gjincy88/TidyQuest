@@ -80,6 +80,25 @@ describe('Tasks routes', () => {
     expect(res.body).toHaveProperty('name', 'Updated Task');
   });
 
+  it('Renaming a task clears translationKey (#42)', async () => {
+    const { token } = await createAdmin(agent);
+    const roomId = await createRoom(token);
+    const taskId = await createTask(token, roomId);
+
+    // Simulate a default task with translationKey
+    db.prepare('UPDATE tasks SET translationKey = ? WHERE id = ?').run('kitchen.wash_dishes', taskId);
+
+    // Rename the task
+    const res = await agent
+      .put(`/api/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'My Custom Name' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('My Custom Name');
+    expect(res.body.translationKey).toBeNull();
+  });
+
   it('Member cannot delete task → 403', async () => {
     const { token: adminToken } = await createAdmin(agent);
     const roomId = await createRoom(adminToken);

@@ -285,7 +285,7 @@ router.put('/tasks/:id', (req: AuthRequest, res: Response) => {
   const setClauses: string[] = [];
   const params: any[] = [];
 
-  if (name !== undefined) { setClauses.push('name = COALESCE(?, name)'); params.push(name); }
+  if (name !== undefined) { setClauses.push('name = COALESCE(?, name)'); params.push(name); setClauses.push('translationKey = NULL'); }
   if (notes !== undefined) { setClauses.push('notes = ?'); params.push(notes || null); }
   if (frequencyDays !== undefined) { setClauses.push('frequencyDays = COALESCE(?, frequencyDays)'); params.push(frequencyDays); }
   if (effort !== undefined) { setClauses.push('effort = COALESCE(?, effort)'); params.push(effort); }
