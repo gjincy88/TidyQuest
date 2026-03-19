@@ -18,16 +18,28 @@ interface Redemption {
   status: string;
 }
 
+interface PendingRequest {
+  id: number;
+  title: string;
+  displayName: string;
+  costCoins: number;
+  redeemedAt: string;
+  status: string;
+}
+
 interface RewardsProps {
   language?: string;
   rewards: Reward[];
   mine: Redemption[];
   userCoins: number;
+  isAdmin?: boolean;
+  pendingRequests?: PendingRequest[];
+  onRewardRequestAction?: (id: number, status: 'approved' | 'rejected') => Promise<void>;
   onRedeem: (rewardId: number) => Promise<void>;
   onCancel: (redemptionId: number) => Promise<void>;
 }
 
-export function Rewards({ language, rewards, mine, userCoins, onRedeem, onCancel }: RewardsProps) {
+export function Rewards({ language, rewards, mine, userCoins, isAdmin, pendingRequests, onRewardRequestAction, onRedeem, onCancel }: RewardsProps) {
   const { t } = useTranslation(language);
   const [pendingRewardId, setPendingRewardId] = useState<number | null>(null);
   const [spendFx, setSpendFx] = useState<{ amount: number; key: number } | null>(null);
@@ -133,6 +145,26 @@ export function Rewards({ language, rewards, mine, userCoins, onRedeem, onCancel
         </div>
         <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600, marginTop: 4 }}>{t('rewards.balanceHint')}</div>
       </div>
+
+      {isAdmin && pendingRequests && pendingRequests.filter(r => r.status === 'requested').length > 0 && (
+        <div className="tq-card tq-card-padded">
+          <h3 className="tq-card-title">{t('dashboard.rewardRequestsTitle')}</h3>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {pendingRequests.filter(r => r.status === 'requested').map((r) => (
+              <div key={r.id} style={{ border: '1.5px solid var(--warm-border)', borderRadius: 12, padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--warm-text)' }}>{r.displayName} — {rewardTitleByName(r.title)}</div>
+                  <div style={{ fontSize: 10, color: 'var(--warm-text-light)', fontWeight: 700 }}>{new Date(r.redeemedAt).toLocaleString()} · {r.costCoins} coins</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="tq-btn tq-btn-primary tq-btn-sm" onClick={() => onRewardRequestAction?.(r.id, 'approved')}>{t('dashboard.approve')}</button>
+                  <button className="tq-btn tq-btn-secondary tq-btn-sm" onClick={() => onRewardRequestAction?.(r.id, 'rejected')}>{t('dashboard.reject')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="tq-card rewards-catalog-card tq-card-padded">
         <h3 className="tq-card-title">{t('rewards.catalog')}</h3>

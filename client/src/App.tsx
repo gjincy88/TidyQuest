@@ -478,6 +478,12 @@ function AppContent() {
                 rewards={rewardsData.rewards}
                 mine={rewardsData.mine}
                 userCoins={user.coins}
+                isAdmin={user.role === 'admin'}
+                pendingRequests={dashboardData?.pendingRewardRequests}
+                onRewardRequestAction={async (id, status) => {
+                  await api.updateRedemptionStatus(id, status);
+                  await Promise.all([loadDashboard(), loadRewards()]);
+                }}
                 onRedeem={async (rewardId: number) => {
                   await api.redeemReward(rewardId);
                   await refreshUser();
