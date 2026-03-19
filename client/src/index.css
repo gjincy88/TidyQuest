@@ -395,18 +395,16 @@ body {
 .tq-page-medium { max-width: 700px; }
 .tq-page-wide { max-width: 900px; }
 
-/* Dashboard — masonry layout */
+/* Dashboard grid layout */
 .dashboard-grid {
-  columns: 300px;
-  column-gap: var(--space-xl);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-xl);
   animation: fadeIn 0.3s ease;
-}
-.dashboard-grid > * {
-  break-inside: avoid;
-  margin-bottom: var(--space-xl);
+  align-items: start;
 }
 .dashboard-grid > .dashboard-hero {
-  column-span: all;
+  grid-column: 1 / -1;
 }
 
 /* Settings grid — via CSS class, not inline */
@@ -551,7 +549,7 @@ html[data-theme='night'] option {
 
   /* Dashboard: force single column on mobile */
   .dashboard-grid {
-    columns: 1 !important;
+    grid-template-columns: 1fr !important;
   }
 
   .page-header {
