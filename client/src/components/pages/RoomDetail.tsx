@@ -96,7 +96,7 @@ interface CompletedTodayBy {
 
 interface Task {
   id: number; name: string; translationKey?: string; health: number; frequencyDays: number;
-  effort: number; notes?: string | null; isSeasonal: boolean; lastCompletedAt: string | null; iconKey?: string;
+  effort: number; notes?: string | null; isSeasonal: boolean; onDemand?: boolean; showInDashboard?: boolean; lastCompletedAt: string | null; iconKey?: string;
   assignedToChildren?: boolean;
   assignedUserIds?: number[];
   assignedUsers?: Array<{ id: number; displayName: string; avatarColor: string; avatarType?: string; avatarPreset?: string; avatarPhotoUrl?: string; coinPercentage?: number }>;
@@ -170,7 +170,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
   const { taskName: translateTask, roomDisplayName, timeAgo, t } = useTranslation(language);
   const [animatedTask, setAnimatedTask] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', notes: '', freqValue: 7, freqUnit: 'days', effort: 1, health: 100, iconKey: 'sparkle', assignmentType: 'none' as 'none' | 'users', assignmentUserIds: [] as number[], assignmentMode: 'first' as 'first' | 'shared' | 'custom', assignmentPercentages: {} as Record<number, number> });
+  const [editForm, setEditForm] = useState({ name: '', notes: '', freqValue: 7, freqUnit: 'days', effort: 1, health: 100, iconKey: 'sparkle', onDemand: false, showInDashboard: false, assignmentType: 'none' as 'none' | 'users', assignmentUserIds: [] as number[], assignmentMode: 'first' as 'first' | 'shared' | 'custom', assignmentPercentages: {} as Record<number, number> });
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskNotes, setNewTaskNotes] = useState('');
@@ -183,6 +183,8 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
   const [newAssignmentUserIds, setNewAssignmentUserIds] = useState<number[]>([]);
   const [newAssignmentMode, setNewAssignmentMode] = useState<'first' | 'shared' | 'custom'>('first');
   const [newAssignmentPercentages, setNewAssignmentPercentages] = useState<Record<number, number>>({});
+  const [newTaskOnDemand, setNewTaskOnDemand] = useState(false);
+  const [newTaskShowInDashboard, setNewTaskShowInDashboard] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('health');
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -262,7 +264,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       assignmentPercentages[u.id] = u.coinPercentage ?? 0;
     }
     setEditingTask(task.id);
-    setEditForm({ name: task.name, notes: task.notes || '', freqValue: value, freqUnit: unit, effort: task.effort, health: task.health, iconKey: task.iconKey || 'sparkle', assignmentType, assignmentUserIds, assignmentMode: task.assignmentMode || 'first', assignmentPercentages });
+    setEditForm({ name: task.name, notes: task.notes || '', freqValue: value, freqUnit: unit, effort: task.effort, health: task.health, iconKey: task.iconKey || 'sparkle', onDemand: !!task.onDemand, showInDashboard: !!task.showInDashboard, assignmentType, assignmentUserIds, assignmentMode: task.assignmentMode || 'first', assignmentPercentages });
   };
 
   const saveEdit = async () => {
@@ -272,7 +274,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       editForm.assignmentType === 'users' ? { assignedToChildren: false, assignedUserIds: editForm.assignmentUserIds } :
       { assignedToChildren: false, assignedUserIds: [] };
     const assignedUserPercentages = editForm.assignmentMode === 'custom' ? editForm.assignmentPercentages : undefined;
-    await api.updateTask(editingTask, { name: editForm.name, notes: editForm.notes, frequencyDays, effort: editForm.effort, health: editForm.health, iconKey: editForm.iconKey, assignmentMode: editForm.assignmentMode, assignedUserPercentages, ...assignmentPayload });
+    await api.updateTask(editingTask, { name: editForm.name, notes: editForm.notes, frequencyDays, effort: editForm.effort, health: editForm.health, iconKey: editForm.iconKey, onDemand: editForm.onDemand, showInDashboard: editForm.showInDashboard, assignmentMode: editForm.assignmentMode, assignedUserPercentages, ...assignmentPayload });
     setEditingTask(null);
     onRefresh?.();
   };
@@ -286,6 +288,11 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
           return { disabled: true, label: t('app.notAssigned') };
         }
       }
+    }
+
+    // On-demand tasks are always completeable — skip all scheduling and repetition guards
+    if (task.onDemand) {
+      return { disabled: false, label: t('roomDetail.done') };
     }
 
     // Block if task frequency cooldown hasn't elapsed (health > 0 means not yet due)
@@ -335,6 +342,8 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       effort: newTaskEffort,
       health: newTaskHealth,
       iconKey: newTaskIconKey,
+      onDemand: newTaskOnDemand,
+      showInDashboard: newTaskShowInDashboard,
       assignmentMode: newAssignmentMode,
       assignedUserPercentages,
       ...assignmentPayload,
@@ -350,6 +359,8 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
     setNewAssignmentUserIds([]);
     setNewAssignmentMode('first');
     setNewAssignmentPercentages({});
+    setNewTaskOnDemand(false);
+    setNewTaskShowInDashboard(false);
     setShowAddTask(false);
     onRefresh?.();
   };
@@ -426,11 +437,23 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                   </div>
                   <div className="task-edit-form" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.onDemand')}</label>
+                      <input type="checkbox" checked={editForm.onDemand}
+                        onChange={(e) => setEditForm(f => ({ ...f, onDemand: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: 16, height: 16, accentColor: 'var(--warm-accent)' }} />
+                    </div>
+                    {editForm.onDemand && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.showInDashboard')}</label>
+                      <input type="checkbox" checked={editForm.showInDashboard}
+                        onChange={(e) => setEditForm(f => ({ ...f, showInDashboard: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: 16, height: 16, accentColor: 'var(--warm-accent)' }} />
+                    </div>}
+                    {!editForm.onDemand && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.every')}</label>
                       <FrequencyPicker value={editForm.freqValue} unit={editForm.freqUnit}
                         t={t}
                         onChange={(v, u) => setEditForm(f => ({ ...f, freqValue: v, freqUnit: u }))} />
-                    </div>
+                    </div>}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.effort')}</label>
                       <EffortPicker effort={editForm.effort} onChange={(e) => setEditForm(f => ({ ...f, effort: e }))} />
@@ -634,19 +657,27 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                       </div>
                     )}
                     <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600 }}>
-                      {timeAgo(task.lastCompletedAt)}{task.isSeasonal ? ` · ${t('roomDetail.seasonal')}` : ''}
+                      {timeAgo(task.lastCompletedAt)}{task.isSeasonal ? ` · ${t('roomDetail.seasonal')}` : ''}{task.onDemand ? ` · ${t('roomDetail.onDemand')}` : ''}
                     </div>
                   </div>
                 </div>
                 <div className="room-task-health"><HealthBar value={animatedTask === task.id ? 100 : task.health} height={8} animate={animatedTask === task.id} /></div>
-                <div className="room-task-frequency" style={{ fontSize: 13, color: 'var(--warm-text-secondary)', fontWeight: 600 }}>{t('roomDetail.every')} {formatFreq(task.frequencyDays, t)}</div>
+                <div className="room-task-frequency" style={{ fontSize: 13, color: 'var(--warm-text-secondary)', fontWeight: 600 }}>
+                  {task.onDemand
+                    ? <span style={{ color: 'var(--warm-accent)', fontWeight: 700 }}>{t('roomDetail.onDemand')}</span>
+                    : <>{t('roomDetail.every')} {formatFreq(task.frequencyDays, t)}</>
+                  }
+                </div>
                 <div className="room-task-effort"><EffortDots effort={task.effort} /></div>
                 <div className="room-task-coins" style={{ fontSize: 12, fontWeight: 800, color: 'var(--warm-accent)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <CoinIcon />{coinsByEffort?.[task.effort] ?? task.effort * 5}
                 </div>
-                {(() => { const { text, color } = formatNextDue(task.lastCompletedAt, task.frequencyDays, t, language); return (
-                  <div className="room-task-due" style={{ fontSize: 12, fontWeight: 700, color }}>{text}</div>
-                ); })()}
+                {task.onDemand
+                  ? <div className="room-task-due" style={{ fontSize: 12, fontWeight: 700, color: 'var(--warm-text-light)' }}>—</div>
+                  : (() => { const { text, color } = formatNextDue(task.lastCompletedAt, task.frequencyDays, t, language); return (
+                      <div className="room-task-due" style={{ fontSize: 12, fontWeight: 700, color }}>{text}</div>
+                    ); })()
+                }
                 <div className="room-task-assigned" style={{ fontSize: 12, color: 'var(--warm-text-secondary)', fontWeight: 600 }}>
                   {task.assignedUsers && task.assignedUsers.length > 0
                     ? <span>
@@ -757,11 +788,23 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
               </div>
               <div className="task-add-form" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.onDemand')}</label>
+                  <input type="checkbox" checked={newTaskOnDemand}
+                    onChange={(e) => setNewTaskOnDemand(e.target.checked)}
+                    style={{ cursor: 'pointer', width: 16, height: 16, accentColor: 'var(--warm-accent)' }} />
+                </div>
+                {newTaskOnDemand && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.showInDashboard')}</label>
+                  <input type="checkbox" checked={newTaskShowInDashboard}
+                    onChange={(e) => setNewTaskShowInDashboard(e.target.checked)}
+                    style={{ cursor: 'pointer', width: 16, height: 16, accentColor: 'var(--warm-accent)' }} />
+                </div>}
+                {!newTaskOnDemand && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.every')}</label>
                   <FrequencyPicker value={newFreqValue} unit={newFreqUnit}
                     t={t}
                     onChange={(v, u) => { setNewFreqValue(v); setNewFreqUnit(u); }} />
-                </div>
+                </div>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.effort')}</label>
                   <EffortPicker effort={newTaskEffort} onChange={setNewTaskEffort} />

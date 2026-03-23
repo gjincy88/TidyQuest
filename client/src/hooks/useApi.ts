@@ -59,7 +59,7 @@ export const api = {
 
   // Tasks
   getTasks: (roomId: number) => apiFetch<any[]>(`/rooms/${roomId}/tasks`),
-  createTask: (roomId: number, data: { name: string; notes?: string; frequencyDays?: number; effort?: number; isSeasonal?: boolean; health?: number; iconKey?: string; assignedToChildren?: boolean; assignedUserIds?: number[]; assignmentMode?: 'first' | 'shared' | 'custom'; assignedUserPercentages?: Record<number, number> }) =>
+  createTask: (roomId: number, data: { name: string; notes?: string; frequencyDays?: number; effort?: number; isSeasonal?: boolean; health?: number; iconKey?: string; onDemand?: boolean; showInDashboard?: boolean; assignedToChildren?: boolean; assignedUserIds?: number[]; assignmentMode?: 'first' | 'shared' | 'custom'; assignedUserPercentages?: Record<number, number> }) =>
     apiFetch<any>(`/rooms/${roomId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
   updateTask: (id: number, data: any) =>
     apiFetch<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

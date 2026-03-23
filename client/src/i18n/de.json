@@ -407,6 +407,8 @@
       "done": "Erledigt",
       "assignToChildren": "Der Kindergruppe zuweisen",
       "seasonal": "Saisonal",
+      "onDemand": "Auf Abruf",
+      "showInDashboard": "Im Dashboard anzeigen",
       "taskName": "Aufgabenname...",
       "addTask": "Aufgabe hinzufügen",
       "icon": "Symbol",
@@ -435,7 +437,12 @@
     "dashboard": {
       "houseHealth": "Hauszustand",
       "todaysQuests": "Heutige Aufgaben",
+      "readyToComplete": "Bereit zum Erledigen",
+      "scheduled": "Geplant",
+      "onDemand": "Auf Abruf",
+      "completedToday": "Heute erledigt",
       "recentActivity": "Letzte Aktivitäten",
+      "customise": "Anpassen",
       "noQuests": "Keine Aufgaben für heute",
       "roomsCount": "Räume",
       "tasksCount": "Aufgaben",
@@ -507,7 +514,9 @@
       "edit": "Bearbeiten",
       "loading": "Laden",
       "add": "Hinzufügen",
-      "you": "Sie"
+      "you": "Sie",
+      "showMore": "{n} mehr anzeigen",
+      "showLess": "Weniger anzeigen"
     },
     "units": {
       "hours": "Stunden",

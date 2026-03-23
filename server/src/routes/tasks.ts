@@ -198,7 +198,7 @@ router.post('/rooms/:roomId/tasks', (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: 'Admin only' });
   }
 
-  const { name, notes, frequencyDays, effort, isSeasonal, health, iconKey, assignedToChildren, assignedUserIds, assignmentMode, assignedUserPercentages } = req.body;
+  const { name, notes, frequencyDays, effort, isSeasonal, health, iconKey, assignedToChildren, assignedUserIds, assignmentMode, assignedUserPercentages, onDemand, showInDashboard } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
 
   const room = db.prepare('SELECT id FROM rooms WHERE id = ?').get(req.params.roomId);
@@ -227,8 +227,8 @@ router.post('/rooms/:roomId/tasks', (req: AuthRequest, res: Response) => {
   }
 
   const result = db.prepare(
-    'INSERT INTO tasks (roomId, name, notes, frequencyDays, effort, isSeasonal, lastCompletedAt, iconKey, assignedToChildren, assignmentMode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(req.params.roomId, name, notes || null, frequencyDays || 7, effort || 1, isSeasonal ? 1 : 0, lastCompletedAt, iconKey || suggestTaskIcon(name, null), resolvedAssignedToChildren, resolvedAssignmentMode);
+    'INSERT INTO tasks (roomId, name, notes, frequencyDays, effort, isSeasonal, lastCompletedAt, iconKey, assignedToChildren, assignmentMode, onDemand, showInDashboard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(req.params.roomId, name, notes || null, frequencyDays || 7, effort || 1, isSeasonal ? 1 : 0, lastCompletedAt, iconKey || suggestTaskIcon(name, null), resolvedAssignedToChildren, resolvedAssignmentMode, onDemand ? 1 : 0, showInDashboard ? 1 : 0);
 
   const newTaskId = result.lastInsertRowid as number;
 
@@ -258,7 +258,7 @@ router.put('/tasks/:id', (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: 'Admin only' });
   }
 
-  const { name, notes, frequencyDays, effort, isSeasonal, health, iconKey, assignedToChildren, assignedUserIds, assignmentMode, assignedUserPercentages } = req.body;
+  const { name, notes, frequencyDays, effort, isSeasonal, health, iconKey, assignedToChildren, assignedUserIds, assignmentMode, assignedUserPercentages, onDemand, showInDashboard } = req.body;
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as any;
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
@@ -296,6 +296,8 @@ router.put('/tasks/:id', (req: AuthRequest, res: Response) => {
   if (resolvedAssignedToChildren !== undefined) { setClauses.push('assignedToChildren = ?'); params.push(resolvedAssignedToChildren); }
   const resolvedMode = assignmentMode !== undefined ? (['shared', 'custom'].includes(assignmentMode) ? assignmentMode : 'first') : undefined;
   if (resolvedMode !== undefined) { setClauses.push('assignmentMode = ?'); params.push(resolvedMode); }
+  if (onDemand !== undefined) { setClauses.push('onDemand = ?'); params.push(onDemand ? 1 : 0); }
+  if (showInDashboard !== undefined) { setClauses.push('showInDashboard = ?'); params.push(showInDashboard ? 1 : 0); }
 
   // Validate custom mode percentages sum to 100
   if (resolvedMode === 'custom' && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
@@ -378,34 +380,36 @@ router.post('/tasks/:id/complete', (req: AuthRequest, res: Response) => {
   // Always use server timestamp — never trust client-supplied completedAt
   const now = new Date().toISOString();
 
-  // Block if effective user already completed this task today
-  const alreadyDoneBySelf = db.prepare(
-    "SELECT id FROM task_completions WHERE taskId = ? AND userId = ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
-  ).get(task.id, effectiveUserId, now);
-  if (alreadyDoneBySelf) {
-    return res.status(409).json({ error: 'already_done_today' });
-  }
-
-  if (task.assignmentMode !== 'shared' && task.assignmentMode !== 'custom') {
-    // In 'first' mode: block if someone else already completed today
-    const alreadyDoneByOther = db.prepare(
-      "SELECT id FROM task_completions WHERE taskId = ? AND userId != ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
+  if (!task.onDemand) {
+    // Block if effective user already completed this task today
+    const alreadyDoneBySelf = db.prepare(
+      "SELECT id FROM task_completions WHERE taskId = ? AND userId = ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
     ).get(task.id, effectiveUserId, now);
-    if (alreadyDoneByOther) {
-      return res.status(409).json({ error: 'already_done_by_other' });
+    if (alreadyDoneBySelf) {
+      return res.status(409).json({ error: 'already_done_today' });
     }
-  }
 
-  // Block if frequency cooldown hasn't elapsed (task not yet due)
-  if (task.lastCompletedAt) {
-    const globalVac = getGlobalVacation();
-    const taskAssigneesForVac = db.prepare('SELECT userId FROM task_assignees WHERE taskId = ?').all(task.id) as { userId: number }[];
-    const taskVac = taskAssigneesForVac.length === 1
-      ? resolveVacation(globalVac, getUserVacation(taskAssigneesForVac[0].userId))
-      : globalVac;
-    const currentHealth = calculateHealth(task.lastCompletedAt, task.frequencyDays, taskVac.isVacation, taskVac.startDate);
-    if (currentHealth > 0) {
-      return res.status(409).json({ error: 'not_yet_due', health: currentHealth });
+    if (task.assignmentMode !== 'shared' && task.assignmentMode !== 'custom') {
+      // In 'first' mode: block if someone else already completed today
+      const alreadyDoneByOther = db.prepare(
+        "SELECT id FROM task_completions WHERE taskId = ? AND userId != ? AND status IN ('approved', 'pending') AND date(completedAt, 'localtime') = date(?, 'localtime')"
+      ).get(task.id, effectiveUserId, now);
+      if (alreadyDoneByOther) {
+        return res.status(409).json({ error: 'already_done_by_other' });
+      }
+    }
+
+    // Block if frequency cooldown hasn't elapsed (task not yet due)
+    if (task.lastCompletedAt) {
+      const globalVac = getGlobalVacation();
+      const taskAssigneesForVac = db.prepare('SELECT userId FROM task_assignees WHERE taskId = ?').all(task.id) as { userId: number }[];
+      const taskVac = taskAssigneesForVac.length === 1
+        ? resolveVacation(globalVac, getUserVacation(taskAssigneesForVac[0].userId))
+        : globalVac;
+      const currentHealth = calculateHealth(task.lastCompletedAt, task.frequencyDays, taskVac.isVacation, taskVac.startDate);
+      if (currentHealth > 0) {
+        return res.status(409).json({ error: 'not_yet_due', health: currentHealth });
+      }
     }
   }
 

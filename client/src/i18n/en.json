@@ -407,6 +407,8 @@
       "done": "Done",
       "assignToChildren": "Assign to Children group",
       "seasonal": "Seasonal",
+      "onDemand": "On Demand",
+      "showInDashboard": "Show in Dashboard",
       "taskName": "Task name...",
       "addTask": "Add Task",
       "icon": "Icon",
@@ -435,7 +437,12 @@
     "dashboard": {
       "houseHealth": "House Health",
       "todaysQuests": "Today's Quests",
+      "readyToComplete": "Ready to Complete",
+      "scheduled": "Scheduled",
+      "onDemand": "On Demand",
+      "completedToday": "Completed Today",
       "recentActivity": "Recent Activity",
+      "customise": "Customise",
       "noQuests": "No quests for today",
       "roomsCount": "Rooms",
       "tasksCount": "Tasks",
@@ -507,7 +514,9 @@
       "edit": "Edit",
       "loading": "Loading",
       "add": "Add",
-      "you": "You"
+      "you": "You",
+      "showMore": "Show {n} more",
+      "showLess": "Show less"
     },
     "units": {
       "hours": "hours",

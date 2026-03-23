@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import HealthBar from '../shared/HealthBar';
 import RingGauge from '../shared/RingGauge';
 import UserAvatar from '../shared/UserAvatar';
@@ -36,6 +36,7 @@ interface Quest {
   roomAccent: string;
   lastCompletedAt: string | null;
   isSeasonal: boolean;
+  onDemand?: boolean;
   frequencyDays: number;
   dueDate?: string;
   dueInDays?: number;
@@ -85,12 +86,35 @@ interface FamilyMember {
   points: number;
 }
 
+interface CompletedTodayEntry {
+  completedAt: string;
+  coinsEarned: number;
+  taskId: number;
+  name: string;
+  translationKey?: string;
+  iconKey?: string;
+  roomId: number;
+  roomName: string;
+  roomType?: string;
+  roomColor: string;
+  roomAccent: string;
+  displayName: string;
+  avatarColor: string;
+  avatarType?: string;
+  avatarPreset?: string;
+  avatarPhotoUrl?: string;
+}
+
 interface DashboardProps {
   data: {
     houseHealth: number;
     rooms: Room[];
     todaysQuests: Quest[];
     nextTasks: Quest[];
+    readyToComplete?: Quest[];
+    scheduledUpcoming?: Quest[];
+    onDemandQuests?: Quest[];
+    completedToday?: CompletedTodayEntry[];
     myGoal?: { goalCoins: number; currentCoins: number; progress: number; goalStartAt?: string | null; goalEndAt?: string | null } | null;
     childrenGoals?: Array<{ id: number; displayName: string; role: string; coins: number; currentCoins?: number; goalCoins: number | null; progress: number | null; goalStartAt?: string | null; goalEndAt?: string | null }>;
     pendingRewardRequests?: Array<{ id: number; title: string; displayName: string; costCoins: number; redeemedAt: string; status: 'requested' | 'approved' | 'rejected' }>;
@@ -125,8 +149,50 @@ const Dashboard: React.FC<DashboardProps> = ({
   leaderboardPeriod = 'week',
 }) => {
   const { taskName, roomDisplayName, timeAgo, t } = useTranslation(language);
-  const { houseHealth, rooms, todaysQuests, nextTasks, myGoal, childrenGoals = [], pendingRewardRequests = [], currentUser, recentActivity } = data;
+  const { houseHealth, rooms, todaysQuests, nextTasks, readyToComplete, scheduledUpcoming, onDemandQuests, completedToday = [], myGoal, childrenGoals = [], pendingRewardRequests = [], currentUser, recentActivity } = data;
+  const readyTasks = readyToComplete ?? todaysQuests.filter(q => !q.onDemand);
+  const scheduledTasks = scheduledUpcoming ?? nextTasks;
+  const onDemandTasks = onDemandQuests ?? todaysQuests.filter(q => q.onDemand);
   const [adminModalQuest, setAdminModalQuest] = useState<Quest | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showCustomize, setShowCustomize] = useState(false);
+
+  const ALL_CARDS = [
+    { id: 'todaysQuests', label: t('dashboard.todaysQuests') },
+    { id: 'scheduled', label: t('dashboard.scheduled') },
+    { id: 'completedToday', label: t('dashboard.completedToday') },
+    { id: 'rooms', label: t('nav.rooms') },
+    { id: 'streak', label: t('dashboard.dayStreak') },
+    { id: 'coins', label: t('dashboard.coinsStatusTitle') },
+    { id: 'myGoal', label: t('dashboard.myGoal') },
+    { id: 'childrenGoals', label: t('dashboard.childrenGoals') },
+    { id: 'rewardRequests', label: t('dashboard.rewardRequestsTitle') },
+    { id: 'leaderboard', label: t('leaderboard.thisWeek') },
+    { id: 'recentActivity', label: t('dashboard.recentActivity') },
+  ];
+  const LS_KEY = 'tq-dashboard-cards';
+  const [hiddenCards, setHiddenCards] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')); }
+    catch { return new Set(); }
+  });
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify([...hiddenCards]));
+  }, [hiddenCards]);
+  const isVisible = (id: string) => !hiddenCards.has(id);
+  const toggleCard = (id: string) => setHiddenCards(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const LIMIT = 7;
+  const isExpanded = (key: string) => !!expanded[key];
+  const toggleExpand = (key: string) => setExpanded(p => ({ ...p, [key]: !p[key] }));
+  const showMoreBtn = (key: string, total: number) => total > LIMIT && (
+    <button className="tq-btn tq-btn-secondary" onClick={() => toggleExpand(key)}
+      style={{ marginTop: 8, width: '100%', fontSize: 12, padding: '8px' }}>
+      {isExpanded(key) ? t('common.showLess') : t('common.showMore').replace('{n}', `${total - LIMIT}`)}
+    </button>
+  );
   const sortedRooms = [...rooms].sort((a, b) => a.health - b.health);
   const roomTypeById = new Map(rooms.map((r) => [r.id, r.roomType]));
   const totalTasks = rooms.reduce((s, r) => s + r.taskCount, 0);
@@ -145,6 +211,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <>
+    {/* Customise panel */}
+    {showCustomize && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowCustomize(false); }}>
+        <div style={{ background: 'var(--warm-card)', border: '1.5px solid var(--warm-border)', borderRadius: 20, padding: 24, margin: 20, minWidth: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)', marginBottom: 16 }}>{t('dashboard.customise')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {ALL_CARDS.map(card => (
+              <label key={card.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={isVisible(card.id)} onChange={() => toggleCard(card.id)}
+                  style={{ width: 16, height: 16, accentColor: 'var(--warm-accent)', cursor: 'pointer' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--warm-text)' }}>{card.label}</span>
+              </label>
+            ))}
+          </div>
+          <button className="tq-btn tq-btn-secondary" onClick={() => setShowCustomize(false)}
+            style={{ marginTop: 16, width: '100%', fontSize: 12 }}>{t('common.cancel')}</button>
+        </div>
+      </div>
+    )}
+
     <div className="dashboard-grid">
 
         {/* House Health Card */}
@@ -159,6 +246,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         >
           <RingGauge value={houseHealth} size={130} strokeWidth={11} />
           <div style={{ flex: 1 }}>
+          <button onClick={() => setShowCustomize(v => !v)} className="tq-btn tq-btn-secondary"
+            style={{ float: 'right', fontSize: 11, padding: '5px 10px', marginBottom: 6 }}>
+            ⚙ {t('dashboard.customise')}
+          </button>
             <div
               style={{
                 fontSize: 11,
@@ -211,37 +302,27 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Today's Quests Card */}
-        <div className="tq-card tq-card-padded">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 16,
-            }}
-          >
+        {/* Today's Quests Card — full width, sections: Ready to Complete / On Demand */}
+        {isVisible('todaysQuests') && <div className="tq-card tq-card-padded">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--warm-text)', margin: 0 }}>
               {t('dashboard.todaysQuests')}
             </h3>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                backgroundColor: 'var(--warm-badge-bg)',
-                color: 'var(--warm-badge-text)',
-                padding: '4px 12px',
-                borderRadius: 99,
-              }}
-            >
-              {todaysQuests.length} {t('dashboard.pending')}
+            <span style={{ fontSize: 11, fontWeight: 800, backgroundColor: 'var(--warm-badge-bg)', color: 'var(--warm-badge-text)', padding: '4px 12px', borderRadius: 99 }}>
+              {readyTasks.length + onDemandTasks.length} {t('dashboard.pending')}
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {todaysQuests.slice(0, 6).map((q) => {
+
+            {/* ── Ready to Complete ── */}
+            {readyTasks.length > 0 && (
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--warm-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                {t('dashboard.readyToComplete')}
+              </div>
+            )}
+            {(isExpanded('ready') ? readyTasks : readyTasks.slice(0, LIMIT)).map((q) => {
               const isAdminOrMember = currentUser.role === 'admin' || currentUser.role === 'member';
               const hasAssignees = (q.effectiveAssignedUserIds && q.effectiveAssignedUserIds.length > 0) || q.assignedToChildren;
-              // Determine done button state
               let btnDisabled = false;
               let btnLabel = t('roomDetail.done');
               if (q.assignmentMode === 'shared') {
@@ -256,147 +337,147 @@ const Dashboard: React.FC<DashboardProps> = ({
                   btnLabel = t('app.doneBy').replace('{name}', q.completedTodayBy.displayName);
                 }
               } else if (!isAdminOrMember) {
-                if (q.effectiveAssignedUserId !== null && q.effectiveAssignedUserId !== undefined) {
-                  if (q.effectiveAssignedUserId !== currentUser.id) {
-                    btnDisabled = true;
-                    btnLabel = t('app.notAssigned');
-                  }
+                if (q.effectiveAssignedUserId !== null && q.effectiveAssignedUserId !== undefined && q.effectiveAssignedUserId !== currentUser.id) {
+                  btnDisabled = true;
+                  btnLabel = t('app.notAssigned');
                 }
               }
-              const handleQuestDone = () => {
+              const handleDone = () => {
                 if (btnDisabled) return;
-                if (isAdminOrMember && hasAssignees) {
-                  setAdminModalQuest(q);
-                } else {
-                  onCompleteTask(q.id);
-                }
+                if (isAdminOrMember && hasAssignees) setAdminModalQuest(q);
+                else onCompleteTask(q.id);
               };
               return (
-                <div
-                  key={q.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '12px 14px',
-                    borderRadius: 16,
-                    backgroundColor: 'var(--warm-bg-subtle)',
-                    border: '1.5px solid var(--warm-border)',
-                    transition: 'all 0.3s ease',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 14,
-                      backgroundColor: q.roomColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      border: `1.5px solid ${q.roomAccent}44`,
-                    }}
-                  >
+                <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 16, backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: q.roomColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1.5px solid ${q.roomAccent}44` }}>
                     <TaskIcon iconKey={q.iconKey} size={24} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warm-text)' }}>
-                      {taskName(q.name, q.translationKey)}
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warm-text)' }}>{taskName(q.name, q.translationKey)}</div>
                     <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600 }}>
                       {roomDisplayName(q.roomName, roomTypeById.get(q.roomId) || '')}
                       {q.lastCompletedAt ? ` \u00B7 ${timeAgo(q.lastCompletedAt)}` : ''}
                     </div>
-                    <div style={{ marginTop: 5 }}>
-                      <HealthBar value={q.health} height={6} showLabel={false} />
-                    </div>
+                    <div style={{ marginTop: 5 }}><HealthBar value={q.health} height={6} showLabel={false} /></div>
                   </div>
-                  <button
-                    onClick={handleQuestDone}
-                    disabled={btnDisabled}
-                    className={btnDisabled ? 'tq-btn' : 'tq-btn tq-btn-primary'}
-                    style={{
-                      padding: '8px 14px',
-                      fontSize: 12,
-                      ...(btnDisabled ? {
-                        opacity: 0.55,
-                        cursor: 'default',
-                        backgroundColor: 'var(--warm-bg-subtle)',
-                        border: '1.5px solid var(--warm-border)',
-                        color: 'var(--warm-text-muted)',
-                        boxShadow: 'none',
-                      } : {
-                        backgroundColor: 'var(--warm-accent)',
-                        color: '#fff',
-                        boxShadow: '0 4px 14px var(--warm-primary-shadow)',
-                      }),
-                    }}
-                  >
+                  <button onClick={handleDone} disabled={btnDisabled} className={btnDisabled ? 'tq-btn' : 'tq-btn tq-btn-primary'}
+                    style={{ padding: '8px 14px', fontSize: 12, ...(btnDisabled ? { opacity: 0.55, cursor: 'default', backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)', color: 'var(--warm-text-muted)', boxShadow: 'none' } : { backgroundColor: 'var(--warm-accent)', color: '#fff', boxShadow: '0 4px 14px var(--warm-primary-shadow)' }) }}>
                     {btnDisabled ? btnLabel : <><CheckIcon /> {btnLabel}</>}
                   </button>
                 </div>
               );
             })}
-            {todaysQuests.length === 0 && (
-              <div className="tq-empty-state" style={{ padding: '16px 4px' }}>
-                {t('dashboard.noQuests')}
-              </div>
+            {showMoreBtn('ready', readyTasks.length)}
+
+            {readyTasks.length === 0 && onDemandTasks.length === 0 && (
+              <div className="tq-empty-state" style={{ padding: '16px 4px' }}>{t('dashboard.noQuests')}</div>
+            )}
+
+            {/* ── On Demand ── */}
+            {onDemandTasks.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--warm-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: readyTasks.length > 0 ? 10 : 2, marginBottom: 2 }}>
+                  {t('dashboard.onDemand')}
+                </div>
+                {(isExpanded('ondemand') ? onDemandTasks : onDemandTasks.slice(0, LIMIT)).map((q) => {
+                  const isAdminOrMember = currentUser.role === 'admin' || currentUser.role === 'member';
+                  const hasAssignees = (q.effectiveAssignedUserIds && q.effectiveAssignedUserIds.length > 0) || q.assignedToChildren;
+                  const handleDone = () => {
+                    if (isAdminOrMember && hasAssignees) setAdminModalQuest(q);
+                    else onCompleteTask(q.id);
+                  };
+                  return (
+                    <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 16, backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: q.roomColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1.5px solid ${q.roomAccent}44` }}>
+                        <TaskIcon iconKey={q.iconKey} size={24} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warm-text)' }}>{taskName(q.name, q.translationKey)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600 }}>
+                          {roomDisplayName(q.roomName, roomTypeById.get(q.roomId) || '')}
+                          {q.lastCompletedAt ? ` \u00B7 ${timeAgo(q.lastCompletedAt)}` : ''}
+                        </div>
+                      </div>
+                      <button onClick={handleDone} className="tq-btn tq-btn-primary" style={{ padding: '8px 14px', fontSize: 12, backgroundColor: 'var(--warm-accent)', color: '#fff', boxShadow: '0 4px 14px var(--warm-primary-shadow)' }}>
+                        <CheckIcon /> {t('roomDetail.done')}
+                      </button>
+                    </div>
+                  );
+                })}
+                {showMoreBtn('ondemand', onDemandTasks.length)}
+              </>
             )}
           </div>
-        </div>
+        </div>}
 
-        {/* Next Tasks Card */}
-        <div className="tq-card tq-card-padded">
-          <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--warm-text)', margin: '0 0 12px' }}>
-            {t('dashboard.nextTasks')}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {nextTasks.slice(0, 6).map((q) => {
-              return (
-                <div key={q.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                  borderRadius: 14, backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)',
-                }}>
-                  <div style={{
-                    width: 34, height: 34, borderRadius: 12, backgroundColor: q.roomColor,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    border: `1.5px solid ${q.roomAccent}44`,
-                  }}><TaskIcon iconKey={q.iconKey} size={20} /></div>
+        {/* Scheduled Card — upcoming tasks not yet due */}
+        {isVisible('scheduled') && scheduledTasks.length > 0 && (
+          <div className="tq-card tq-card-padded">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--warm-text)', margin: 0 }}>
+                {t('dashboard.scheduled')}
+              </h3>
+              <span style={{ fontSize: 11, fontWeight: 800, backgroundColor: 'var(--warm-badge-bg)', color: 'var(--warm-badge-text)', padding: '4px 12px', borderRadius: 99 }}>
+                {scheduledTasks.length}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(isExpanded('scheduled') ? scheduledTasks : scheduledTasks.slice(0, LIMIT)).map((q) => (
+                <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: q.roomColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1.5px solid ${q.roomAccent}44` }}>
+                    <TaskIcon iconKey={q.iconKey} size={20} />
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warm-text)' }}>{taskName(q.name, q.translationKey)}</div>
-                    <div style={{ fontSize: 10, color: 'var(--warm-text-light)', fontWeight: 600 }}>
-                      {roomDisplayName(q.roomName, roomTypeById.get(q.roomId) || '')}
-                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--warm-text-light)', fontWeight: 600 }}>{roomDisplayName(q.roomName, roomTypeById.get(q.roomId) || '')}</div>
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--warm-streak-subtext)', backgroundColor: 'var(--warm-accent-light)', border: '1px solid var(--warm-streak-border)', borderRadius: 999, padding: '3px 8px' }}>
-                    {(q.dueInDays ?? 0) <= 0
-                      ? t('calendar.today')
-                      : (q.dueInDays === 1)
-                        ? t('calendar.tomorrow')
-                        : t('calendar.inDays').replace('{days}', `${q.dueInDays}`)}
+                    {(q.dueInDays ?? 0) <= 0 ? t('calendar.today') : q.dueInDays === 1 ? t('calendar.tomorrow') : t('calendar.inDays').replace('{days}', `${q.dueInDays}`)}
                   </div>
                 </div>
-              );
-            })}
-            {nextTasks.length === 0 && (
-              <div className="tq-empty-state" style={{ padding: '16px 4px' }}>
-                {t('calendar.allCaughtUp')}
-              </div>
-            )}
+              ))}
+              {showMoreBtn('scheduled', scheduledTasks.length)}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Completed Today Card */}
+        {isVisible('completedToday') && completedToday.length > 0 && (
+          <div className="tq-card tq-card-padded">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--warm-text)', margin: 0 }}>
+                {t('dashboard.completedToday')}
+              </h3>
+              <span style={{ fontSize: 11, fontWeight: 800, backgroundColor: 'var(--warm-badge-bg)', color: 'var(--warm-badge-text)', padding: '4px 12px', borderRadius: 99 }}>
+                {completedToday.length}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(isExpanded('completed') ? completedToday : completedToday.slice(0, LIMIT)).map((c, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, backgroundColor: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: c.roomColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1.5px solid ${c.roomAccent}44` }}>
+                    <TaskIcon iconKey={c.iconKey} size={20} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warm-text)' }}>{taskName(c.name, c.translationKey)}</div>
+                    <div style={{ fontSize: 10, color: 'var(--warm-text-light)', fontWeight: 600 }}>
+                      {roomDisplayName(c.roomName, c.roomType || '')} &middot; {c.displayName}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 800, color: 'var(--warm-accent)' }}>
+                    {gamificationEnabled && <><CoinIcon /> +{c.coinsEarned}</>}
+                    <CheckIcon />
+                  </div>
+                </div>
+              ))}
+              {showMoreBtn('completed', completedToday.length)}
+            </div>
+          </div>
+        )}
 
       {/* ── Rooms ── */}
-      <div className="tq-card tq-card-padded">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 16,
-          }}
-        >
+      {isVisible('rooms') && <div className="tq-card tq-card-padded">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--warm-text)', margin: 0 }}>
             {t('nav.rooms')}
           </h3>
@@ -405,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {sortedRooms.map((room) => {
+          {(isExpanded('rooms') ? sortedRooms : sortedRooms.slice(0, LIMIT)).map((room) => {
             const RoomIcon = getRoomIcon(room.roomType || room.name);
             return (
               <div
@@ -466,12 +547,13 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             );
           })}
+          {showMoreBtn('rooms', sortedRooms.length)}
         </div>
-      </div>
+      </div>}
 
       {/* ── Widgets ── */}
         {/* Streak Card */}
-        {gamificationEnabled && <div
+        {gamificationEnabled && isVisible('streak') && <div
           className="tq-card tq-card-padded"
           style={{
             background: 'var(--warm-streak-bg)',
@@ -544,7 +626,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>}
 
-        {gamificationEnabled && <div className="tq-card tq-card-padded">
+        {gamificationEnabled && isVisible('coins') && <div className="tq-card tq-card-padded">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)' }}>{t('dashboard.coinsStatusTitle')}</div>
             <span style={{ fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '3px 8px', backgroundColor: 'var(--warm-accent-light)', color: 'var(--warm-accent)', border: '1px solid var(--warm-accent)' }}>
@@ -564,7 +646,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>}
 
-        {gamificationEnabled && myGoal && (
+        {gamificationEnabled && isVisible('myGoal') && myGoal && (
           <div className="tq-card tq-card-padded">
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)', marginBottom: 6 }}>{t('dashboard.myGoal')}</div>
             <div style={{ fontSize: 12, color: 'var(--warm-text-muted)', fontWeight: 700, marginBottom: 8 }}>
@@ -579,7 +661,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        {gamificationEnabled && currentUser.role === 'admin' && childrenGoals.length > 0 && (
+        {gamificationEnabled && isVisible('childrenGoals') && currentUser.role === 'admin' && childrenGoals.length > 0 && (
           <div className="tq-card tq-card-padded">
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)', marginBottom: 8 }}>{t('dashboard.childrenGoals')}</div>
             <div style={{ display: 'grid', gap: 8 }}>
@@ -601,7 +683,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        {gamificationEnabled && currentUser.role === 'admin' && (
+        {gamificationEnabled && isVisible('rewardRequests') && currentUser.role === 'admin' && (
           <div className="tq-card tq-card-padded">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)' }}>{t('dashboard.rewardRequestsTitle')}</div>
@@ -642,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
 
         {/* Mini Leaderboard */}
-        {gamificationEnabled && <div className="tq-card tq-card-padded">
+        {gamificationEnabled && isVisible('leaderboard') && <div className="tq-card tq-card-padded">
           <h3
             style={{
               fontSize: 14,
@@ -704,7 +786,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>}
 
         {/* Recent Activity */}
-        <div className="tq-card tq-card-padded">
+        {isVisible('recentActivity') && <div className="tq-card tq-card-padded">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3
               style={{
@@ -761,7 +843,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>}
             </div>
           ))}
-        </div>
+        </div>}
     </div>
     {adminModalQuest && (
       <AdminCompleteModal

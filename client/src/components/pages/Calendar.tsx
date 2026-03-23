@@ -3,7 +3,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 
 interface CalendarProps {
   completions: Array<{ completedAt: string; taskName: string; translationKey?: string; roomName: string }>;
-  tasks: Array<{ id: number; name: string; translationKey?: string; roomName: string; roomType: string; health: number; frequencyDays: number; lastCompletedAt: string | null; iconKey?: string }>;
+  tasks: Array<{ id: number; name: string; translationKey?: string; roomName: string; roomType: string; health: number; frequencyDays: number; lastCompletedAt: string | null; iconKey?: string; onDemand?: boolean }>;
   language?: string;
 }
 
@@ -36,11 +36,11 @@ export function Calendar({ completions, tasks, language }: CalendarProps) {
         dueDate.setDate(dueDate.getDate() + task.frequencyDays);
       }
       const dueInDays = task.lastCompletedAt
-        ? Math.max(0, Math.ceil((dueDate.getTime() - Date.now()) / 86400000))
+        ? Math.max(0, Math.floor((dueDate.getTime() - Date.now()) / 86400000))
         : 0;
       return { ...task, dueInDays, dueDate };
     })
-    .filter((task) => task.dueInDays <= 30)
+    .filter((task) => !task.onDemand && task.dueInDays <= 30)
     .sort((a, b) => a.dueInDays - b.dueInDays);
 
   // Days with due tasks

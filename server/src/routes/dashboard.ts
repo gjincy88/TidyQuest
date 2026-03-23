@@ -71,7 +71,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const dueDateTs = t.lastCompletedAt
         ? new Date(t.lastCompletedAt).getTime() + safeFreq * 86400000
         : nowTs;
-      const dueInDays = Math.max(0, Math.floor((dueDateTs - nowTs) / 86400000));
+      const dueInDays = t.onDemand ? 0 : Math.max(0, Math.floor((dueDateTs - nowTs) / 86400000));
       const taskWithHealth = {
         ...t,
         isSeasonal: !!t.isSeasonal,
@@ -116,17 +116,41 @@ router.get('/', (req: AuthRequest, res: Response) => {
     ? Math.round(forHouseAvg.reduce((s, t) => s + t.health * t.effort, 0) / totalEffort)
     : 100;
 
-  // Today's quests: tasks due today or overdue, non-seasonal
-  const todaysQuests = allTasks
-    .filter((t) => !t.isSeasonal && t.dueInDays <= 0)
+  // Ready to complete: actually overdue (due date has passed), non-seasonal, non-on-demand
+  const readyToComplete = allTasks
+    .filter((t) => !t.isSeasonal && !t.onDemand && new Date(t.dueDate).getTime() <= nowTs)
+    .sort((a, b) => a.health - b.health)
+    .slice(0, 10);
+
+  // Scheduled upcoming: not yet due (due date in the future), non-seasonal, non-on-demand
+  const scheduledUpcoming = allTasks
+    .filter((t) => !t.isSeasonal && !t.onDemand && new Date(t.dueDate).getTime() > nowTs)
     .sort((a, b) => a.dueInDays - b.dueInDays || a.health - b.health)
     .slice(0, 10);
 
-  // Next tasks to come soon (non-seasonal)
-  const nextTasks = allTasks
-    .filter((t) => !t.isSeasonal && t.dueInDays > 0)
-    .sort((a, b) => a.dueInDays - b.dueInDays || a.health - b.health)
-    .slice(0, 10);
+  // On-demand quests: only those opted in via showInDashboard
+  const onDemandQuests = allTasks
+    .filter((t) => !t.isSeasonal && t.onDemand && t.showInDashboard)
+    .sort((a, b) => a.health - b.health);
+
+  // Backwards-compatible aliases
+  const todaysQuests = [...readyToComplete, ...onDemandQuests];
+  const nextTasks = scheduledUpcoming;
+
+  // Completed today
+  const completedToday = db.prepare(`
+    SELECT tc.completedAt, tc.coinsEarned,
+           t.id as taskId, t.name, t.translationKey, t.iconKey, t.roomId,
+           r.name as roomName, r.roomType, r.color as roomColor, r.accentColor as roomAccent,
+           u.displayName, u.avatarColor, u.avatarType, u.avatarPreset, u.avatarPhotoUrl
+    FROM task_completions tc
+    JOIN tasks t ON tc.taskId = t.id
+    JOIN rooms r ON t.roomId = r.id
+    JOIN users u ON tc.userId = u.id
+    WHERE tc.status = 'approved'
+      AND date(tc.completedAt, 'localtime') = date('now', 'localtime')
+    ORDER BY tc.completedAt DESC
+  `).all();
 
   // Recent activity
   const recentActivity = db.prepare(`
@@ -188,7 +212,11 @@ router.get('/', (req: AuthRequest, res: Response) => {
     houseHealth,
     rooms: roomsWithHealth,
     todaysQuests,
+    readyToComplete,
+    scheduledUpcoming,
+    onDemandQuests,
     nextTasks,
+    completedToday,
     myGoal,
     childrenGoals,
     pendingRewardRequests,
