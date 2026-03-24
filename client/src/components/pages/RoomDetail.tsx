@@ -1049,7 +1049,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--warm-text)' }}>
                     {tt.translationKey ? translateTask(tt.translationKey, tt.name) : tt.name}
                   </span>
-                  <EffortDots effort={tt.effort} size={10} />
+                  <EffortDots effort={tt.effort} />
                 </label>
               ))}
             </div>
