@@ -230,7 +230,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}
         onClick={(e) => { if (e.target === e.currentTarget) setShowCustomize(false); }}>
         <div style={{ background: 'var(--warm-card)', border: '1.5px solid var(--warm-border)', borderRadius: 20, padding: 24, margin: 20, minWidth: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)', marginBottom: 16 }}>{t('dashboard.customise')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warm-text)' }}>{t('dashboard.customise')}</div>
+            <button onClick={() => setShowCustomize(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 18, lineHeight: 1, padding: '0 2px' }}
+              aria-label="Close">✕</button>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {ALL_CARDS.map(card => (
               <label key={card.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -240,8 +245,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               </label>
             ))}
           </div>
-          <button className="tq-btn tq-btn-secondary" onClick={() => setShowCustomize(false)}
-            style={{ marginTop: 16, width: '100%', fontSize: 12 }}>{t('common.cancel')}</button>
         </div>
       </div>
     )}

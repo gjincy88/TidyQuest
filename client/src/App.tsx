@@ -311,6 +311,7 @@ function AppContent() {
           justifyContent: 'center',
           cursor: 'pointer',
           boxShadow: '0 2px 8px var(--warm-shadow)',
+          color: 'var(--warm-text)',
         }}
         aria-label="Open menu"
       >

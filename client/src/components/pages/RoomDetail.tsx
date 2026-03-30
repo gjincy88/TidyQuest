@@ -59,7 +59,7 @@ function formatNextDue(lastCompletedAt: string | null, frequencyDays: number, t:
 
   const diffMinutes = Math.ceil(diffMs / (60 * 1000));
   const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
-  const remainingMinutes = Math.ceil((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+  const remainingMinutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
 
   if (diffMinutes < 60) {
     return { text: t('roomDetail.inMinutes').replace('{m}', `${Math.max(1, diffMinutes)}`), color: 'var(--health-yellow)' };
@@ -790,7 +790,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                   className="tq-input"
                   style={{ flex: 1, resize: 'vertical' }} />
               </div>
-              <div className="task-add-form" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div className="task-add-form" style={{ display: 'flex', alignItems: 'center', gap: 20, minHeight: 30 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-light)' }}>{t('roomDetail.onDemand')}</label>
                   <input type="checkbox" checked={newTaskOnDemand}
