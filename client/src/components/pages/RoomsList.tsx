@@ -556,8 +556,8 @@ export function RoomsList({ rooms, language, isAdmin, users, onSelectRoom, onCre
                             }}>&times;</button>
                           </div>
 
-                          {task.selected && (
-                            <div className="task-grid" style={{ display: 'grid', gridTemplateColumns: assignableUsers.length > 0 ? '1fr 1fr 1fr 1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 12, paddingLeft: 28 }}>
+                          {task.selected && (<>
+                            <div className="task-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, paddingLeft: 28 }}>
                               {/* Current State */}
                               <div>
                                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--warm-text-light)', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -637,26 +637,27 @@ export function RoomsList({ rooms, language, isAdmin, users, onSelectRoom, onCre
                                 </select>
                               </div>
 
-                              {/* Assign */}
-                              {assignableUsers.length > 0 && (
-                                <div>
-                                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--warm-text-light)', textTransform: 'uppercase', marginBottom: 6 }}>
-                                    {t('rooms.assignTask')}
-                                  </div>
-                                  <select
-                                    value={task.assignedUserId || 'none'}
-                                    onChange={(e) => updateTask(idx, { assignedUserId: e.target.value })}
-                                    className="tq-input-compact" style={{ width: '100%', cursor: 'pointer', fontSize: 11 }}
-                                  >
-                                    <option value="none">—</option>
-                                    {assignableUsers.map(u => (
-                                      <option key={u.id} value={String(u.id)}>{u.displayName}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              )}
                             </div>
-                          )}
+
+                            {/* Assign — separate row below the grid */}
+                            {assignableUsers.length > 0 && (
+                              <div style={{ paddingLeft: 28, marginTop: 8 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--warm-text-light)', textTransform: 'uppercase', marginBottom: 6 }}>
+                                  {t('rooms.assignTask')}
+                                </div>
+                                <select
+                                  value={task.assignedUserId || 'none'}
+                                  onChange={(e) => updateTask(idx, { assignedUserId: e.target.value })}
+                                  className="tq-input-compact" style={{ maxWidth: 200, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  <option value="none">—</option>
+                                  {assignableUsers.map(u => (
+                                    <option key={u.id} value={String(u.id)}>{u.displayName}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </>)}
                         </div>
                       );
                     })}
