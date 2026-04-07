@@ -1,3 +1,26 @@
+# TidyQuest v0.5.0-beta.3 Release Notes
+
+> **Date:** 2026-04-07
+
+Bug fix release addressing dashboard label inconsistencies.
+
+---
+
+## Bug Fixes
+
+- **#88**: Dashboard titles "Coins status" and "Reward requests" now use consistent Title Case ("Coins Status", "Reward Requests") matching all other dashboard section titles
+- **#86**: Customise menu now shows "Leaderboard" instead of "This Week" for the leaderboard section — the label no longer changes with the selected time period
+
+---
+
+## Upgrade from beta.2
+
+1. Pull the new Docker image: `docker pull mellowfox/tidyquest:0.5.0-beta.3`
+2. Restart the container
+3. No database migrations required
+
+---
+
 # TidyQuest v0.5.0-beta.2 Release Notes
 
 > **Date:** 2026-04-01

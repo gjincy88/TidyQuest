@@ -181,7 +181,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'myGoal', label: t('dashboard.myGoal') },
     { id: 'childrenGoals', label: t('dashboard.childrenGoals') },
     { id: 'rewardRequests', label: t('dashboard.rewardRequestsTitle') },
-    { id: 'leaderboard', label: t('leaderboard.thisWeek') },
+    { id: 'leaderboard', label: t('app.leaderboardTitle') },
     { id: 'recentActivity', label: t('dashboard.recentActivity') },
   ];
   const LS_KEY = 'tq-dashboard-cards';
