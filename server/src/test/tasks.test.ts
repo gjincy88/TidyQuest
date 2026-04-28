@@ -162,6 +162,59 @@ describe('Tasks routes', () => {
     expect(res.body).toHaveProperty('error', 'already_done_today');
   });
 
+  it('Admin can reset completed task to dirty and complete it again', async () => {
+    const { token } = await createAdmin(agent);
+    const roomId = await createRoom(token);
+    const taskId = await createTask(token, roomId, { effort: 3, frequencyDays: 7 });
+
+    await agent
+      .post(`/api/tasks/${taskId}/complete`)
+      .set('Authorization', `Bearer ${token}`);
+
+    const resetRes = await agent
+      .post(`/api/tasks/${taskId}/reset`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(resetRes.status).toBe(200);
+    expect(resetRes.body).toMatchObject({
+      success: true,
+      completionsRemoved: 1,
+      coinsDeducted: 15,
+    });
+
+    const tasksAfterReset = await agent
+      .get(`/api/rooms/${roomId}/tasks`)
+      .set('Authorization', `Bearer ${token}`);
+    const taskAfterReset = tasksAfterReset.body.find((t: any) => t.id === taskId);
+    expect(taskAfterReset.health).toBe(0);
+    expect(taskAfterReset.completedTodayBy).toBeNull();
+
+    const completeAgainRes = await agent
+      .post(`/api/tasks/${taskId}/complete`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(completeAgainRes.status).toBe(200);
+    expect(completeAgainRes.body).toHaveProperty('coinsEarned', 15);
+  });
+
+  it('Member cannot reset task to dirty → 403', async () => {
+    const { token: adminToken } = await createAdmin(agent);
+    const roomId = await createRoom(adminToken);
+    const taskId = await createTask(adminToken, roomId);
+    const { token: memberToken } = await createUser(agent, adminToken, {
+      username: 'member1',
+      displayName: 'Member One',
+      password: 'pass123',
+      role: 'member',
+    });
+
+    const res = await agent
+      .post(`/api/tasks/${taskId}/reset`)
+      .set('Authorization', `Bearer ${memberToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
   it('Complete task not yet due → 409 (cooldown)', async () => {
     const { token } = await createAdmin(agent);
     const roomId = await createRoom(token);

@@ -1,0 +1,12 @@
+{
+  "domain": "tidyquest",
+  "name": "TidyQuest",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/mellow-fox/TidyQuest",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/mellow-fox/TidyQuest/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

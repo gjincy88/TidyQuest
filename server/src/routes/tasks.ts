@@ -341,6 +341,45 @@ router.delete('/tasks/:id', (req: AuthRequest, res: Response) => {
   res.json({ success: true });
 });
 
+// Reset task to dirty - admin only
+router.post('/tasks/:id/reset', (req: AuthRequest, res: Response) => {
+  if (!ensureAdmin(req.userId)) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as any;
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+
+  const now = new Date().toISOString();
+  const completions = db.prepare(
+    "SELECT id, userId, coinsEarned, status FROM task_completions WHERE taskId = ? AND date(completedAt, 'localtime') = date(?, 'localtime')"
+  ).all(task.id, now) as Array<{ id: number; userId: number; coinsEarned: number; status: string }>;
+
+  for (const completion of completions) {
+    if (completion.status === 'approved') {
+      db.prepare('UPDATE users SET coins = MAX(0, coins - ?) WHERE id = ?')
+        .run(completion.coinsEarned, completion.userId);
+    }
+  }
+
+  db.prepare(
+    "DELETE FROM task_completions WHERE taskId = ? AND date(completedAt, 'localtime') = date(?, 'localtime')"
+  ).run(task.id, now);
+
+  const effectiveFrequency = Math.max(1 / 24, Number(task.frequencyDays) || 7);
+  const dirtyAt = new Date(Date.now() - effectiveFrequency * 86400000).toISOString();
+  db.prepare('UPDATE tasks SET lastCompletedAt = ? WHERE id = ?').run(dirtyAt, task.id);
+
+  res.json({
+    success: true,
+    completionsRemoved: completions.length,
+    coinsDeducted: completions
+      .filter((completion) => completion.status === 'approved')
+      .reduce((sum, completion) => sum + completion.coinsEarned, 0),
+    lastCompletedAt: dirtyAt,
+  });
+});
+
 // Complete task
 router.post('/tasks/:id/complete', (req: AuthRequest, res: Response) => {
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as any;

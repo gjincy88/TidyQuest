@@ -65,6 +65,8 @@ export const api = {
     apiFetch<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTask: (id: number) =>
     apiFetch<any>(`/tasks/${id}`, { method: 'DELETE' }),
+  resetTask: (id: number) =>
+    apiFetch<{ success: boolean; completionsRemoved: number; coinsDeducted: number; lastCompletedAt: string }>(`/tasks/${id}/reset`, { method: 'POST' }),
   completeTask: (id: number, onBehalfOfUserId?: number) =>
     apiFetch<{ coinsEarned: number; health: number; pendingApproval?: boolean }>(`/tasks/${id}/complete`, {
       method: 'POST', body: JSON.stringify(onBehalfOfUserId ? { onBehalfOfUserId } : {}),
