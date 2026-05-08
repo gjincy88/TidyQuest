@@ -49,6 +49,11 @@ function AppContent() {
   const [confetti, setConfetti] = useState(false);
   const [taskErrorMsg, setTaskErrorMsg] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem('tidyquest-sidebar-collapsed');
+    return saved === 'true';
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -167,6 +172,11 @@ function AppContent() {
       navigate('/', { replace: true });
     }
   }, [user, location.pathname, navigate]);
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('tidyquest-sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const handleCompleteTask = async (taskId: number) => {
     try {
@@ -325,9 +335,11 @@ function AppContent() {
         isMobileOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         gamificationEnabled={gamificationEnabled}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(prev => !prev)}
       />
 
-      <main style={{ marginLeft: 240, flex: 1, padding: '28px 36px', maxWidth: 1320, backgroundColor: 'var(--warm-bg)' }} className="main-content">
+      <main style={{ marginLeft: sidebarCollapsed ? 60 : 240, flex: 1, padding: '28px 36px', maxWidth: 1320, backgroundColor: 'var(--warm-bg)', transition: 'margin-left 0.3s ease' }} className="main-content">
         <Routes>
           <Route path="/" element={
             <>
