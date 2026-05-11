@@ -107,6 +107,8 @@ export function Settings({
   const [rewardRequests, setRewardRequests] = useState<Array<{ id: number; title: string; displayName: string; costCoins: number; redeemedAt: string; status: string }>>([]);
   const [rewardDraft, setRewardDraft] = useState({ title: '', description: '', costCoins: '30' });
   const [editingRewardId, setEditingRewardId] = useState<number | null>(null);
+  const [editingRewardTitle, setEditingRewardTitle] = useState('');
+  const [editingRewardDesc, setEditingRewardDesc] = useState('');
   const [editingRewardCost, setEditingRewardCost] = useState('');
   const [memberProfile, setMemberProfile] = useState<Record<number, {
     language: string;
@@ -366,24 +368,29 @@ export function Settings({
     await loadRewardsAdmin();
   };
 
-  const startRewardEdit = (r: { id: number; costCoins: number }) => {
+  const startRewardEdit = (r: { id: number; title: string; description?: string | null; costCoins: number }) => {
     setEditingRewardId(r.id);
+    setEditingRewardTitle(r.title);
+    setEditingRewardDesc(r.description || '');
     setEditingRewardCost(String(r.costCoins));
   };
 
   const cancelRewardEdit = () => {
     setEditingRewardId(null);
+    setEditingRewardTitle('');
+    setEditingRewardDesc('');
     setEditingRewardCost('');
   };
 
-  const saveRewardEdit = async (r: { id: number; title: string; description?: string | null; isActive?: boolean }) => {
+  const saveRewardEdit = async (r: { id: number }) => {
     const parsed = Math.max(1, Math.round(Number(editingRewardCost)));
     if (!Number.isFinite(parsed)) return;
+    if (!editingRewardTitle.trim()) return;
     await api.updateReward(r.id, {
-      title: r.title,
-      description: r.description || '',
+      title: editingRewardTitle.trim(),
+      description: editingRewardDesc.trim() || '',
       costCoins: parsed,
-      isActive: r.isActive !== false,
+      isActive: true,
     });
     cancelRewardEdit();
     await loadRewardsAdmin();
@@ -907,8 +914,35 @@ export function Settings({
           <div style={{ display: 'grid', gap: 6 }}>
             {rewardsAdmin.map((r) => (
               <div key={r.id} className="rewards-list-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 100px auto', gap: 8, alignItems: 'center', border: '1px solid var(--warm-border)', borderRadius: 10, padding: '8px 10px', backgroundColor: r.isActive ? 'var(--warm-bg-subtle)' : 'var(--warm-bg-warm)' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--warm-text)' }}>{rewardTitle(r)}</div>
-                <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600 }}>{rewardDesc(r)}</div>
+                {editingRewardId === r.id ? (
+                  <>
+                    <input
+                      className="tq-input"
+                      value={editingRewardTitle}
+                      onChange={(e) => setEditingRewardTitle(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') await saveRewardEdit(r);
+                        if (e.key === 'Escape') cancelRewardEdit();
+                      }}
+                      style={{ fontSize: 12, fontWeight: 800 }}
+                    />
+                    <input
+                      className="tq-input"
+                      value={editingRewardDesc}
+                      onChange={(e) => setEditingRewardDesc(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') await saveRewardEdit(r);
+                        if (e.key === 'Escape') cancelRewardEdit();
+                      }}
+                      style={{ fontSize: 11 }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--warm-text)' }}>{rewardTitle(r)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 600 }}>{rewardDesc(r)}</div>
+                  </>
+                )}
                 {editingRewardId === r.id ? (
                   <input
                     type="number"
