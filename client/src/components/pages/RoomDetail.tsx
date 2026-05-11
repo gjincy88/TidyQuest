@@ -172,7 +172,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
   const { taskName: translateTask, roomDisplayName, timeAgo, t } = useTranslation(language);
   const [animatedTask, setAnimatedTask] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', notes: '', freqValue: 7, freqUnit: 'days', effort: 1, health: 100, iconKey: 'sparkle', onDemand: false, showInDashboard: false, assignmentType: 'none' as 'none' | 'users', assignmentUserIds: [] as number[], assignmentMode: 'first' as 'first' | 'shared' | 'custom', assignmentPercentages: {} as Record<number, number> });
+  const [editForm, setEditForm] = useState({ name: '', notes: '', freqValue: 7, freqUnit: 'days', effort: 1, health: 100, healthChanged: false, iconKey: 'sparkle', onDemand: false, showInDashboard: false, assignmentType: 'none' as 'none' | 'users', assignmentUserIds: [] as number[], assignmentMode: 'first' as 'first' | 'shared' | 'custom', assignmentPercentages: {} as Record<number, number> });
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskNotes, setNewTaskNotes] = useState('');
@@ -271,7 +271,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       assignmentPercentages[u.id] = u.coinPercentage ?? 0;
     }
     setEditingTask(task.id);
-    setEditForm({ name: task.name, notes: task.notes || '', freqValue: value, freqUnit: unit, effort: task.effort, health: task.health, iconKey: task.iconKey || 'sparkle', onDemand: !!task.onDemand, showInDashboard: !!task.showInDashboard, assignmentType, assignmentUserIds, assignmentMode: task.assignmentMode || 'first', assignmentPercentages });
+    setEditForm({ name: task.name, notes: task.notes || '', freqValue: value, freqUnit: unit, effort: task.effort, health: task.health, healthChanged: false, iconKey: task.iconKey || 'sparkle', onDemand: !!task.onDemand, showInDashboard: !!task.showInDashboard, assignmentType, assignmentUserIds, assignmentMode: task.assignmentMode || 'first', assignmentPercentages });
   };
 
   const saveEdit = async () => {
@@ -281,7 +281,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
       editForm.assignmentType === 'users' ? { assignedToChildren: false, assignedUserIds: editForm.assignmentUserIds } :
       { assignedToChildren: false, assignedUserIds: [] };
     const assignedUserPercentages = editForm.assignmentMode === 'custom' ? editForm.assignmentPercentages : undefined;
-    await api.updateTask(editingTask, { name: editForm.name, notes: editForm.notes, frequencyDays, effort: editForm.effort, health: editForm.health, iconKey: editForm.iconKey, onDemand: editForm.onDemand, showInDashboard: editForm.showInDashboard, assignmentMode: editForm.assignmentMode, assignedUserPercentages, ...assignmentPayload });
+    await api.updateTask(editingTask, { name: editForm.name, notes: editForm.notes, frequencyDays, effort: editForm.effort, ...(editForm.healthChanged ? { health: editForm.health } : {}), iconKey: editForm.iconKey, onDemand: editForm.onDemand, showInDashboard: editForm.showInDashboard, assignmentMode: editForm.assignmentMode, assignedUserPercentages, ...assignmentPayload });
     setEditingTask(null);
     onRefresh?.();
   };
@@ -481,7 +481,7 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                           max={100}
                           step={10}
                           value={editForm.health}
-                          onChange={(e) => setEditForm((f) => ({ ...f, health: parseInt(e.target.value, 10) }))}
+                          onChange={(e) => setEditForm((f) => ({ ...f, health: parseInt(e.target.value, 10), healthChanged: true }))}
                           style={{ flex: 1, accentColor: healthColor(editForm.health) }}
                         />
                         <span style={{ fontSize: 11, fontWeight: 800, color: healthColor(editForm.health), minWidth: 32, textAlign: 'right' }}>
