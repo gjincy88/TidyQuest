@@ -500,9 +500,12 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                       onChange={(e) => setEditForm((f) => ({ ...f, iconKey: e.target.value }))}
                       className="tq-input-compact"
                     >
-                      {TASK_ICON_OPTIONS.map((opt) => (
-                        <option key={opt.key} value={opt.key}>{t(`taskIcons.${opt.key}`)}</option>
-                      ))}
+                      {TASK_ICON_OPTIONS
+                        .slice()
+                        .sort((a, b) => a.label.localeCompare(b.label))
+                        .map((opt) => (
+                          <option key={opt.key} value={opt.key}>{t(`taskIcons.${opt.key}`)}</option>
+                        ))}
                     </select>
                   </div>
                   {/* Task assignment — only show if room has no room-level assignment */}
