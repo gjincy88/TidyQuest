@@ -25,6 +25,7 @@ interface FamilyUser {
   isVacationMode?: number;
   vacationStartDate?: string | null;
   vacationEndDate?: string | null;
+  isParticipant?: number;
 }
 
 interface VacationConfig {
@@ -121,6 +122,7 @@ export function Settings({
   const [coinAdjust, setCoinAdjust] = useState<Record<number, string>>({});
   const [coinAdjustMsg, setCoinAdjustMsg] = useState<Record<number, string>>({});
   const [memberVacation, setMemberVacation] = useState<Record<number, boolean>>({});
+  const [memberParticipant, setMemberParticipant] = useState<Record<number, boolean>>({});
   const [vacationEnabled, setVacationEnabled] = useState(!!vacationConfig?.vacationMode);
   const [vacationEndDate, setVacationEndDate] = useState(vacationConfig?.vacationEndDate ?? null);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
@@ -1092,6 +1094,21 @@ export function Settings({
                   >
                     {t('settings.deleteUser')}
                   </button>
+                </div>
+              )}
+              {isAdmin && u.id !== user.id && u.role === 'admin' && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--warm-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warm-text)' }}>{t('settings.participantMode')}</div>
+                    <div style={{ fontSize: 11, color: 'var(--warm-text-light)', fontWeight: 500, marginTop: 2 }}>{t('settings.participantDesc')}</div>
+                  </div>
+                  <Toggle
+                    checked={!!(memberParticipant[u.id] ?? u.isParticipant)}
+                    onChange={async (val) => {
+                      setMemberParticipant((prev) => ({ ...prev, [u.id]: val }));
+                      await api.updateUserParticipant(u.id, val);
+                    }}
+                  />
                 </div>
               )}
               {isAdmin && u.role !== 'admin' && memberEditOpen[u.id] && (

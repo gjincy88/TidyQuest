@@ -125,7 +125,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
   if (!me) return res.status(404).json({ error: 'User not found' });
 
   const family = me.role === 'admin'
-    ? (db.prepare("SELECT id FROM users WHERE role IN ('child', 'member') ORDER BY displayName").all() as Array<{ id: number }>)
+    ? (db.prepare("SELECT id FROM users WHERE role IN ('child', 'member') OR (role = 'admin' AND isParticipant = 1) ORDER BY displayName").all() as Array<{ id: number }>)
       .map((u) => getUserStats(u.id))
       .filter(Boolean)
     : [];

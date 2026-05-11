@@ -159,6 +159,8 @@
       "perUserVacation": "Per membro",
       "vacationSince": "In vacanza dal",
       "vacationReturnDate": "Data di ritorno",
+      "participantMode": "Partecipa alle attività",
+      "participantDesc": "Guadagna monete, appare nella classifica e negli obiettivi",
       "strictMode": "Modalità rigorosa",
       "strictModeDesc": "Richiede approvazione admin quando un bambino segna un compito come completato.",
       "registrationEnabled": "Consenti nuove registrazioni",

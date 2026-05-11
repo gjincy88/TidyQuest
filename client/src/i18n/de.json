@@ -159,6 +159,8 @@
       "perUserVacation": "Pro Mitglied",
       "vacationSince": "Im Urlaub seit",
       "vacationReturnDate": "Rückkehrdatum",
+      "participantMode": "Nimmt an Aufgaben teil",
+      "participantDesc": "Verdient Münzen, erscheint in der Bestenliste und den Zielen",
       "strictMode": "Strenger Modus",
       "strictModeDesc": "Erfordert Admin-Freigabe, wenn ein Kind eine Aufgabe als erledigt markiert.",
       "registrationEnabled": "Neue Registrierungen erlauben",

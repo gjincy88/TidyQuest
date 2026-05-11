@@ -159,6 +159,8 @@
       "perUserVacation": "Per member",
       "vacationSince": "On vacation since",
       "vacationReturnDate": "Return date",
+      "participantMode": "Participates in tasks",
+      "participantDesc": "Earns coins, appears on leaderboard and in goals",
       "strictMode": "Strict Mode",
       "strictModeDesc": "Require parent admin approval when a child marks a task as done.",
       "registrationEnabled": "Allow New Registrations",

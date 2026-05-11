@@ -189,7 +189,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
   const childrenGoals = user.role === 'admin'
     ? db.prepare(
-      "SELECT id, displayName, role, coins, goalCoins, goalStartAt, goalEndAt, avatarColor, avatarType, avatarPreset, avatarPhotoUrl FROM users WHERE role != 'admin' ORDER BY displayName"
+      "SELECT id, displayName, role, coins, goalCoins, goalStartAt, goalEndAt, avatarColor, avatarType, avatarPreset, avatarPhotoUrl FROM users WHERE role != 'admin' OR isParticipant = 1 ORDER BY displayName"
     ).all().map((c: any) => {
       const currentCoins = c.goalCoins ? getGoalCoinsWithinPeriod(c) : c.coins;
       return {

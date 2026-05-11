@@ -12,7 +12,7 @@ import { ensureAdmin, getCoinsByEffortConfig, getGlobalVacation, isStrictModeEna
 const router = Router();
 router.use(authMiddleware);
 
-const USER_SELECT = 'id, username, displayName, role, avatarColor, avatarType, avatarPreset, avatarPhotoUrl, coins, currentStreak, goalCoins, goalStartAt, goalEndAt, isVacationMode, vacationStartDate, vacationEndDate, language, createdAt';
+const USER_SELECT = 'id, username, displayName, role, avatarColor, avatarType, avatarPreset, avatarPhotoUrl, coins, currentStreak, goalCoins, goalStartAt, goalEndAt, isVacationMode, vacationStartDate, vacationEndDate, language, createdAt, isParticipant';
 
 function normalizeNotificationTime(value: string | undefined): string | null {
   if (value === undefined) return null;
@@ -376,6 +376,22 @@ router.put('/:id/goal', (req: AuthRequest, res: Response) => {
   res.json(updated);
 });
 
+router.put('/:id/participant', (req: AuthRequest, res: Response) => {
+  const requester = db.prepare('SELECT id, role FROM users WHERE id = ?').get(req.userId) as any;
+  if (!requester || requester.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+  const targetId = parseInt(req.params.id as string);
+  const target = db.prepare('SELECT id, role FROM users WHERE id = ?').get(targetId) as any;
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  const { isParticipant } = req.body as { isParticipant?: boolean };
+  if (typeof isParticipant !== 'boolean') return res.status(400).json({ error: 'isParticipant must be a boolean' });
+
+  db.prepare('UPDATE users SET isParticipant = ? WHERE id = ?').run(isParticipant ? 1 : 0, targetId);
+  const updated = db.prepare(`SELECT ${USER_SELECT} FROM users WHERE id = ?`).get(targetId);
+  res.json(updated);
+});
+
 router.put('/:id/vacation', (req: AuthRequest, res: Response) => {
   const requester = db.prepare('SELECT id, role FROM users WHERE id = ?').get(req.userId) as any;
   if (!requester || requester.role !== 'admin') {
@@ -430,9 +446,9 @@ router.post('/:id/goals', (req: AuthRequest, res: Response) => {
   const targetId = parseInt(req.params.id as string);
   if (!ensureAdmin(req.userId)) return res.status(403).json({ error: 'Admin only' });
 
-  const target = db.prepare('SELECT id, role FROM users WHERE id = ?').get(targetId) as any;
+  const target = db.prepare('SELECT id, role, isParticipant FROM users WHERE id = ?').get(targetId) as any;
   if (!target) return res.status(404).json({ error: 'User not found' });
-  if (target.role === 'admin') return res.status(400).json({ error: 'Cannot assign goals to admin' });
+  if (target.role === 'admin' && !target.isParticipant) return res.status(400).json({ error: 'Cannot assign goals to a non-participating admin' });
 
   const { title, goalCoins, startAt, endAt } = req.body as { title?: string; goalCoins?: number; startAt?: string | null; endAt?: string | null };
   const cleanTitle = String(title || '').trim();

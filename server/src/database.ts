@@ -197,6 +197,7 @@ export function initDatabase() {
     `ALTER TABLE tasks ADD COLUMN showInDashboard INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE user_goals ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`,
     `ALTER TABLE user_goals ADD COLUMN completedAt TEXT`,
+    `ALTER TABLE users ADD COLUMN isParticipant INTEGER NOT NULL DEFAULT 1`,
   ];
 
   for (const sql of migrations) {
@@ -211,6 +212,13 @@ export function initDatabase() {
   }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_task_completions_status ON task_completions(status);`);
+
+  // One-time migration: set isParticipant = 0 for existing admins (opt-in for pre-existing installs)
+  const participantMigrated = db.prepare("SELECT value FROM app_settings WHERE key = 'adminParticipantMigrated_v1'").get() as any;
+  if (!participantMigrated) {
+    db.prepare("UPDATE users SET isParticipant = 0 WHERE role = 'admin'").run();
+    db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('adminParticipantMigrated_v1', '1')").run();
+  }
 
   // One-time migration: populate task_assignees from legacy tasks.assignedUserId
   const migratedAssignees = db.prepare("SELECT value FROM app_settings WHERE key = 'taskAssigneesMigrated_v1'").get() as any;

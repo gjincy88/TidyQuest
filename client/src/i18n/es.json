@@ -159,6 +159,8 @@
       "perUserVacation": "Por miembro",
       "vacationSince": "De vacaciones desde",
       "vacationReturnDate": "Fecha de regreso",
+      "participantMode": "Participa en tareas",
+      "participantDesc": "Gana monedas, aparece en la clasificación y objetivos",
       "strictMode": "Modo estricto",
       "strictModeDesc": "Requiere validación de admin cuando un niño marca una tarea como completada.",
       "registrationEnabled": "Permitir nuevos registros",

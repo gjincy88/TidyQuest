@@ -225,6 +225,9 @@ export const api = {
   updateUserVacation: (userId: number, data: { isVacationMode?: boolean; vacationEndDate?: string | null }) =>
     apiFetch<any>(`/users/${userId}/vacation`, { method: 'PUT', body: JSON.stringify(data) }),
 
+  updateUserParticipant: (userId: number, isParticipant: boolean) =>
+    apiFetch<any>(`/users/${userId}/participant`, { method: 'PUT', body: JSON.stringify({ isParticipant }) }),
+
   getStrictModeConfig: () =>
     apiFetch<{ strictMode: boolean }>('/users/strict-mode-config'),
   updateStrictModeConfig: (data: { strictMode: boolean }) =>
