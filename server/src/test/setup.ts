@@ -49,6 +49,7 @@ function runSchema(db: InstanceType<typeof Database>) {
       goalCoins INTEGER,
       goalStartAt TEXT,
       goalEndAt TEXT,
+      isParticipant INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
