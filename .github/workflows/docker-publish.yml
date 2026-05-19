@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/tidyquest
+  IMAGE_NAME: mellowfox/tidyquest
 
 jobs:
   build-and-push:
