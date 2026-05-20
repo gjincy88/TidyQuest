@@ -4,7 +4,7 @@
 
 **TidyQuest** is a self-hosted web application that gamifies housework using RPG mechanics. Complete tasks, earn coins, unlock achievements, and compete with your family on the leaderboard.
 
-![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/ucXmKM6y)
@@ -76,7 +76,16 @@ Perfect for families who want to:
 
 **Choose your deployment method:**
 
-#### Option A: Docker Hub Image (Recommended)
+#### Option A: Unraid Community Applications (Easiest)
+
+If you're running Unraid, TidyQuest is available directly from the **Community Applications** catalog:
+
+1. Open Community Applications in your Unraid dashboard
+2. Search for **TidyQuest**
+3. Click **Install** and fill in your `JWT_SECRET`
+4. Done!
+
+#### Option B: Docker Hub Image (Recommended)
 
 Fastest way to get started using pre-built multi-platform image:
 

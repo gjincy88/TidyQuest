@@ -12,6 +12,7 @@
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:3020]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/mellow-fox/TidyQuest/main/unraid/tidyquest.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/mellow-fox/TidyQuest/main/client/public/favicon.svg</Icon>
   <License>AGPL-3.0</License>
   <Screenshot>https://raw.githubusercontent.com/mellow-fox/TidyQuest/main/screenshots/dashboard.jpg</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/mellow-fox/TidyQuest/main/screenshots/rooms.jpg</Screenshot>
