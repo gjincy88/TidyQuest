@@ -85,9 +85,9 @@ If you're running Unraid, TidyQuest is available directly from the **Community A
 3. Click **Install** and fill in your `JWT_SECRET`
 4. Done!
 
-#### Option B: Docker Hub Image (Recommended)
+#### Option B: Docker Compose — Docker Hub Image (Recommended)
 
-Fastest way to get started using pre-built multi-platform image:
+Fastest way to get started on any Linux server using the pre-built multi-platform image:
 
 1. **Create project directory**
    ```bash
@@ -124,7 +124,7 @@ Fastest way to get started using pre-built multi-platform image:
 
    Access at **http://localhost:3020**
 
-#### Option B: Build from Source
+#### Option C: Build from Source
 
 For development or customization:
 
