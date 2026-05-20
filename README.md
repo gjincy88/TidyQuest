@@ -371,6 +371,60 @@ All endpoints require `Authorization: Bearer <token>` (except auth routes).
 
 ---
 
+## 🏠 Home Assistant Integration
+
+TidyQuest includes a custom Home Assistant integration that exposes tasks as sensors and allows you to complete or manage them from dashboards and automations.
+
+### Install
+
+1. Copy `custom_components/tidyquest/` into your Home Assistant `config/custom_components/` directory
+2. Restart Home Assistant
+3. Go to **Settings → Devices & Services → Add Integration** and search for **TidyQuest**
+4. Enter your TidyQuest URL and credentials (admin or member account)
+
+### Entities
+
+Each task becomes a `sensor` whose state is the task's current health (0–100). Attributes include `room_name`, `effort`, `is_due`, `assigned_users`, `assignment_mode`, and more.
+
+### Services
+
+| Service | Description |
+|---------|-------------|
+| `tidyquest.complete_task` | Mark a task as done. HA user is automatically matched to a TidyQuest user by display name |
+| `tidyquest.reset_task` | Reset a task to due/dirty (removes today's completion) |
+| `tidyquest.create_task` | Create a new task in a room |
+| `tidyquest.update_task` | Update task properties (frequency, effort, etc.) |
+| `tidyquest.delete_task` | Delete a task |
+| `tidyquest.refresh` | Force immediate sensor refresh |
+
+### Example — Complete a task from a dashboard button
+
+```yaml
+service: tidyquest.complete_task
+target:
+  entity_id: sensor.kitchen_wash_dishes_health
+```
+
+### Example — Automation when a task is overdue
+
+```yaml
+automation:
+  trigger:
+    platform: numeric_state
+    entity_id: sensor.kitchen_wash_dishes_health
+    below: 20
+  action:
+    service: notify.mobile_app
+    data:
+      message: "The dishes need doing!"
+```
+
+> **User matching**: HA user names are automatically matched to TidyQuest `displayName` (case-insensitive). Override with `user_name` or `tidyquest_user_id` in service data.
+
+See `custom_components/tidyquest/README.md` for full documentation.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
