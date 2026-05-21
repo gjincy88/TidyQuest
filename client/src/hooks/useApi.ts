@@ -48,6 +48,11 @@ export const api = {
 
   // Rooms
   getRooms: () => apiFetch<any[]>('/rooms'),
+  getZones: () => apiFetch<any[]>('/zones'),
+  createZone: (name: string) => apiFetch<any>('/zones', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateZone: (id: number, data: { name?: string; sortOrder?: number }) =>
+    apiFetch<any>(`/zones/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteZone: (id: number) => apiFetch<any>(`/zones/${id}`, { method: 'DELETE' }),
   getDefaultTasks: (roomType: string) =>
     apiFetch<Array<{ name: string; frequencyDays: number; effort: number; isSeasonal?: boolean }>>(`/rooms/defaults/${roomType}`),
   createRoom: (data: { name: string; roomType: string; color?: string; accentColor?: string; tasks?: any[]; assignedUserId?: number | null }) =>
@@ -59,7 +64,7 @@ export const api = {
 
   // Tasks
   getTasks: (roomId: number) => apiFetch<any[]>(`/rooms/${roomId}/tasks`),
-  createTask: (roomId: number, data: { name: string; notes?: string; frequencyDays?: number; effort?: number; isSeasonal?: boolean; health?: number; iconKey?: string; onDemand?: boolean; showInDashboard?: boolean; assignedToChildren?: boolean; assignedUserIds?: number[]; assignmentMode?: 'first' | 'shared' | 'custom' | 'rotating'; assignedUserPercentages?: Record<number, number>; customCoins?: number | null; allowEarlyCompletion?: boolean }) =>
+  createTask: (roomId: number, data: { name: string; notes?: string; frequencyDays?: number; effort?: number; isSeasonal?: boolean; health?: number; iconKey?: string; translationKey?: string; onDemand?: boolean; showInDashboard?: boolean; assignedToChildren?: boolean; assignedUserIds?: number[]; assignmentMode?: 'first' | 'shared' | 'custom' | 'rotating'; assignedUserPercentages?: Record<number, number>; customCoins?: number | null; allowEarlyCompletion?: boolean }) =>
     apiFetch<any>(`/rooms/${roomId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
   updateTask: (id: number, data: any) =>
     apiFetch<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

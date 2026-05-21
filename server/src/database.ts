@@ -54,6 +54,13 @@ export function initDatabase() {
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS zones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS rooms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -202,6 +209,7 @@ export function initDatabase() {
     `ALTER TABLE tasks ADD COLUMN allowEarlyCompletion INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE tasks ADD COLUMN rotationCurrentUserId INTEGER REFERENCES users(id) ON DELETE SET NULL`,
     `ALTER TABLE user_goals ADD COLUMN rewardCoins INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE rooms ADD COLUMN zoneId INTEGER REFERENCES zones(id) ON DELETE SET NULL`,
   ];
 
   for (const sql of migrations) {

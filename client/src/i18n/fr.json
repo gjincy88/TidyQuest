@@ -534,7 +534,16 @@
       "modeCustom": "Personnalisé",
       "totalPercentage": "Total : {total}%",
       "done": "fait",
-      "renameRoom": "Renommer la pièce"
+      "renameRoom": "Renommer la pièce",
+      "zones": "Zones",
+      "createZone": "Créer une zone",
+      "zoneName": "Nom de la zone",
+      "noZone": "Non assigné",
+      "assignToZone": "Assigner à une zone",
+      "removeFromZone": "Retirer de la zone",
+      "deleteZone": "Supprimer la zone",
+      "zoneDeleted": "Zone supprimée",
+      "zoneCreated": "Zone créée"
     },
     "common": {
       "save": "Enregistrer",

@@ -1182,7 +1182,8 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
                   await api.createTask(room.id, {
                     name: tt.name, effort: tt.effort,
                     frequencyDays: tt.frequencyDays,
-                    health: 100, iconKey: tt.iconKey || 'sparkle',
+                    iconKey: tt.iconKey || 'sparkle',
+                    translationKey: tt.translationKey,
                   });
                 }
                 setTemplateAdding(false);

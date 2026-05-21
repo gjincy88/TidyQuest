@@ -4,6 +4,7 @@ import path from 'path';
 import { initDatabase } from './database';
 import authRoutes from './routes/auth';
 import roomsRoutes from './routes/rooms';
+import zonesRoutes from './routes/zones';
 import tasksRoutes from './routes/tasks';
 import dashboardRoutes from './routes/dashboard';
 import leaderboardRoutes from './routes/leaderboard';
@@ -36,6 +37,7 @@ export function createApp() {
   // API routes
   app.use('/api/auth', authRoutes);
   app.use('/api/rooms', roomsRoutes);
+  app.use('/api/zones', zonesRoutes);
   app.use('/api', tasksRoutes);
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/leaderboard', leaderboardRoutes);

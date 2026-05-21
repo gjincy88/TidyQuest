@@ -71,6 +71,7 @@ interface RoomsListProps {
     color: string;
     accentColor: string;
     health: number;
+    zoneId?: number | null;
     assignedUserId?: number | null;
     assignedUser?: AssignedUser | null;
     tasks: Array<{ id: number; name: string; translationKey?: string; iconKey?: string; health: number }>;
@@ -104,6 +105,18 @@ export function RoomsList({ rooms, language, isAdmin, users, onSelectRoom, onCre
   const [newTaskName, setNewTaskName] = useState('');
   const [renamingRoom, setRenamingRoom] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [zones, setZones] = useState<Array<{ id: number; name: string; sortOrder: number; roomCount: number }>>([]);
+  const [creatingZone, setCreatingZone] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [renamingZone, setRenamingZone] = useState<number | null>(null);
+  const [renameZoneValue, setRenameZoneValue] = useState('');
+  const [zoneMenuRoomId, setZoneMenuRoomId] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.getZones().then(setZones).catch(() => {});
+  }, []);
+
+  const refreshZones = () => api.getZones().then(setZones).catch(() => {});
 
   const sortedRooms = [...rooms].sort(
     (a, b) => getRoomHealth(a.tasks as any) - getRoomHealth(b.tasks as any)
@@ -266,162 +279,213 @@ export function RoomsList({ rooms, language, isAdmin, users, onSelectRoom, onCre
         </div>
       )}
 
-      <div className="page-enter" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: 16,
-      }}>
-        {sortedRooms.map((room) => {
-          const rh = room.health;
-          const RoomIcon = getRoomIcon(room.roomType);
-          return (
-            <div key={room.id} className="tq-card tq-card-hover tq-card-padded"
-              onClick={() => onSelectRoom(room.id)}
-              style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                <div style={{
-                  width: 56, height: 56, borderRadius: 18, flexShrink: 0,
-                  backgroundColor: room.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: `2px solid ${room.accentColor}33`,
-                }}><RoomIcon /></div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {renamingRoom === room.id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            if (renameValue.trim()) { if (onRenameRoom) await onRenameRoom(room.id, renameValue.trim()); else await api.updateRoom(room.id, { name: renameValue.trim() }); }
-                            setRenamingRoom(null);
-                          } else if (e.key === 'Escape') {
-                            setRenamingRoom(null);
-                          }
-                        }}
-                        autoFocus
-                        className="tq-input"
-                        style={{ fontSize: 15, fontWeight: 800, padding: '4px 8px' }}
-                      />
-                      <button
-                        onClick={async (e) => { e.stopPropagation(); if (renameValue.trim()) { if (onRenameRoom) await onRenameRoom(room.id, renameValue.trim()); else await api.updateRoom(room.id, { name: renameValue.trim() }); } setRenamingRoom(null); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-accent)', fontSize: 16, fontWeight: 700 }}
-                        title={t('common.save')}
-                      >✓</button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setRenamingRoom(null); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 16, fontWeight: 700 }}
-                        title={t('common.cancel')}
-                      >✕</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--warm-text)' }}>{roomDisplayName(room.name, room.roomType)}</div>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setRenamingRoom(room.id); setRenameValue(roomDisplayName(room.name, room.roomType)); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-light)', fontSize: 12, padding: '2px 4px', lineHeight: 1 }}
-                          title={t('rooms.renameRoom')}
-                        >✏️</button>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 12, color: 'var(--warm-text-light)', fontWeight: 600 }}>
-                    {room.tasks.length} {t('rooms.tasks')} &middot; {healthLabel(rh)}
-                  </div>
-                  {room.assignedUser && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '3px 8px 3px 4px', borderRadius: 20, backgroundColor: 'var(--warm-bg-subtle)', border: '1px solid var(--warm-border)' }}>
-                      <UserAvatar
-                        name={room.assignedUser.displayName}
-                        color={room.assignedUser.avatarColor}
-                        size={18}
-                        avatarType={room.assignedUser.avatarType as any}
-                        avatarPreset={room.assignedUser.avatarPreset}
-                        avatarPhotoUrl={room.assignedUser.avatarPhotoUrl}
-                      />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-secondary)' }}>{room.assignedUser.displayName}</span>
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  <div style={{ fontSize: 26, fontWeight: 900, color: getHealthColor(rh) }}>{rh}%</div>
-                  {isAdmin && (
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      {onAssignRoom && (
-                        <button
-                          className="tq-btn"
-                          onClick={(e) => openAssignModal(e, room)}
-                          title={t('rooms.assignRoom')}
-                          style={{
-                            width: 26, height: 26, borderRadius: 9,
-                            border: '1.5px solid var(--warm-border)',
-                            backgroundColor: 'var(--warm-bg-subtle)',
-                            color: 'var(--warm-text-muted)',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                          }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                            <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                          </svg>
-                        </button>
-                      )}
-                      <button
-                        className="tq-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRoom(room.id, room.name);
-                        }}
-                        aria-label={`${t('common.delete')} ${roomDisplayName(room.name, room.roomType)}`}
-                        title={`${t('common.delete')} ${roomDisplayName(room.name, room.roomType)}`}
-                        style={{
-                          width: 26, height: 26, borderRadius: 9,
-                          border: '1.5px solid var(--warm-danger-border)',
-                          backgroundColor: 'var(--warm-danger-bg)',
-                          color: 'var(--warm-danger)',
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                        }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <HealthBar value={rh} height={10} showLabel={false} />
-              <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
-                {room.tasks.map((t) => {
-                  const badge = taskBadgeStyle(t.health);
-                  return (
-                    <div key={t.id} style={{
-                      fontSize: 11, fontWeight: 700, padding: '4px 10px 4px 6px', borderRadius: 10,
-                      backgroundColor: badge.bg, color: badge.text,
-                      border: `1px solid ${badge.border}`,
-                      display: 'inline-flex', alignItems: 'center', gap: 8,
-                    }}>
-                      <span style={{
-                        width: 30, height: 30, borderRadius: 10,
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.6)',
-                        flexShrink: 0,
-                        marginLeft: -5,
-                      }}>
-                        <TaskIcon iconKey={t.iconKey} size={21} />
-                      </span>
-                      <span>{taskName(t.name, t.translationKey)}</span>
-                    </div>
-                  );
-                })}
-              </div>
+      {/* Zone management (admin only) */}
+      {isAdmin && (
+        <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {zones.map(zone => (
+            <div key={zone.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'var(--warm-bg-subtle)', border: '1.5px solid var(--warm-border)', fontSize: 12, fontWeight: 700, color: 'var(--warm-text)' }}>
+              {renamingZone === zone.id ? (
+                <>
+                  <input
+                    value={renameZoneValue}
+                    onChange={e => setRenameZoneValue(e.target.value)}
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter' && renameZoneValue.trim()) {
+                        await api.updateZone(zone.id, { name: renameZoneValue.trim() });
+                        await refreshZones();
+                        setRenamingZone(null);
+                      } else if (e.key === 'Escape') setRenamingZone(null);
+                    }}
+                    autoFocus
+                    style={{ fontSize: 12, fontWeight: 700, padding: '2px 6px', borderRadius: 8, border: '1px solid var(--warm-accent)', outline: 'none', width: 100 }}
+                  />
+                  <button onClick={async () => { if (renameZoneValue.trim()) { await api.updateZone(zone.id, { name: renameZoneValue.trim() }); await refreshZones(); } setRenamingZone(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-accent)', fontWeight: 900, fontSize: 14, padding: 0 }}>✓</button>
+                  <button onClick={() => setRenamingZone(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 14, padding: 0 }}>✕</button>
+                </>
+              ) : (
+                <>
+                  <span onClick={() => { setRenamingZone(zone.id); setRenameZoneValue(zone.name); }} style={{ cursor: 'pointer' }}>🏷️ {zone.name}</span>
+                  <button onClick={async () => { if (confirm(`${t('rooms.deleteZone')} "${zone.name}"?`)) { await api.deleteZone(zone.id); await refreshZones(); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 11, padding: '0 0 0 2px', lineHeight: 1 }} title={t('rooms.deleteZone')}>✕</button>
+                </>
+              )}
             </div>
-          );
-        })}
+          ))}
+          {creatingZone ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <input
+                value={newZoneName}
+                onChange={e => setNewZoneName(e.target.value)}
+                placeholder={t('rooms.zoneName')}
+                autoFocus
+                onKeyDown={async e => {
+                  if (e.key === 'Enter' && newZoneName.trim()) {
+                    await api.createZone(newZoneName.trim());
+                    await refreshZones();
+                    setNewZoneName('');
+                    setCreatingZone(false);
+                  } else if (e.key === 'Escape') { setCreatingZone(false); setNewZoneName(''); }
+                }}
+                style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: '1.5px solid var(--warm-accent)', outline: 'none', width: 120 }}
+              />
+              <button onClick={async () => { if (newZoneName.trim()) { await api.createZone(newZoneName.trim()); await refreshZones(); setNewZoneName(''); setCreatingZone(false); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-accent)', fontWeight: 900, fontSize: 16, padding: 0 }}>✓</button>
+              <button onClick={() => { setCreatingZone(false); setNewZoneName(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 16, padding: 0 }}>✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setCreatingZone(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'none', border: '1.5px dashed var(--warm-border)', fontSize: 12, fontWeight: 700, color: 'var(--warm-text-muted)', cursor: 'pointer' }}>
+              + {t('rooms.createZone')}
+            </button>
+          )}
+        </div>
+      )}
 
-        {rooms.length === 0 && (
-          <div className="tq-empty-state" style={{ gridColumn: '1 / -1' }}>
-            <div className="tq-empty-state-title">{t('rooms.noRoomsYet')}</div>
-            <div>{t('rooms.clickAddRoom')}</div>
-          </div>
-        )}
+      <div className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {(() => {
+          const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 } as const;
+          const renderRoom = (room: typeof sortedRooms[0]) => {
+            const rh = room.health;
+            const RoomIcon = getRoomIcon(room.roomType);
+            return (
+              <div key={room.id} className="tq-card tq-card-hover tq-card-padded"
+                onClick={() => onSelectRoom(room.id)}
+                style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 18, flexShrink: 0,
+                    backgroundColor: room.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `2px solid ${room.accentColor}33`,
+                  }}><RoomIcon /></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {renamingRoom === room.id ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              if (renameValue.trim()) { if (onRenameRoom) await onRenameRoom(room.id, renameValue.trim()); else await api.updateRoom(room.id, { name: renameValue.trim() }); }
+                              setRenamingRoom(null);
+                            } else if (e.key === 'Escape') { setRenamingRoom(null); }
+                          }}
+                          autoFocus className="tq-input" style={{ fontSize: 15, fontWeight: 800, padding: '4px 8px' }}
+                        />
+                        <button onClick={async (e) => { e.stopPropagation(); if (renameValue.trim()) { if (onRenameRoom) await onRenameRoom(room.id, renameValue.trim()); else await api.updateRoom(room.id, { name: renameValue.trim() }); } setRenamingRoom(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-accent)', fontSize: 16, fontWeight: 700 }} title={t('common.save')}>✓</button>
+                        <button onClick={(e) => { e.stopPropagation(); setRenamingRoom(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-muted)', fontSize: 16, fontWeight: 700 }} title={t('common.cancel')}>✕</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--warm-text)' }}>{roomDisplayName(room.name, room.roomType)}</div>
+                        {isAdmin && (
+                          <button onClick={(e) => { e.stopPropagation(); setRenamingRoom(room.id); setRenameValue(roomDisplayName(room.name, room.roomType)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warm-text-light)', fontSize: 12, padding: '2px 4px', lineHeight: 1 }} title={t('rooms.renameRoom')}>✏️</button>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: 'var(--warm-text-light)', fontWeight: 600 }}>
+                      {room.tasks.length} {t('rooms.tasks')} &middot; {healthLabel(rh)}
+                    </div>
+                    {room.assignedUser && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '3px 8px 3px 4px', borderRadius: 20, backgroundColor: 'var(--warm-bg-subtle)', border: '1px solid var(--warm-border)' }}>
+                        <UserAvatar name={room.assignedUser.displayName} color={room.assignedUser.avatarColor} size={18} avatarType={room.assignedUser.avatarType as any} avatarPreset={room.assignedUser.avatarPreset} avatarPhotoUrl={room.assignedUser.avatarPhotoUrl} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warm-text-secondary)' }}>{room.assignedUser.displayName}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, color: getHealthColor(rh) }}>{rh}%</div>
+                    {isAdmin && (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {zones.length > 0 && (
+                          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              className="tq-btn"
+                              onClick={(e) => { e.stopPropagation(); setZoneMenuRoomId(zoneMenuRoomId === room.id ? null : room.id); }}
+                              title={t('rooms.assignToZone')}
+                              style={{ width: 26, height: 26, borderRadius: 9, border: `1.5px solid ${room.zoneId ? 'var(--warm-accent)' : 'var(--warm-border)'}`, backgroundColor: room.zoneId ? 'var(--warm-accent-light)' : 'var(--warm-bg-subtle)', color: room.zoneId ? 'var(--warm-accent)' : 'var(--warm-text-muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, fontSize: 12 }}
+                            >🏷️</button>
+                            {zoneMenuRoomId === room.id && (
+                              <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 100, background: 'var(--warm-card)', border: '1.5px solid var(--warm-border)', borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.14)', minWidth: 150, overflow: 'hidden' }}>
+                                {room.zoneId && (
+                                  <button onClick={async () => { await api.updateRoom(room.id, { zoneId: null }); setZoneMenuRoomId(null); window.location.reload(); }} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', fontSize: 12, fontWeight: 600, color: 'var(--warm-text-muted)', background: 'none', border: 'none', borderBottom: '1px solid var(--warm-border-subtle)', cursor: 'pointer', fontFamily: 'Nunito' }}>{t('rooms.removeFromZone')}</button>
+                                )}
+                                {zones.map(z => (
+                                  <button key={z.id} onClick={async () => { await api.updateRoom(room.id, { zoneId: z.id }); setZoneMenuRoomId(null); window.location.reload(); }} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', fontSize: 12, fontWeight: room.zoneId === z.id ? 800 : 600, color: room.zoneId === z.id ? 'var(--warm-accent)' : 'var(--warm-text)', background: 'none', border: 'none', borderBottom: '1px solid var(--warm-border-subtle)', cursor: 'pointer', fontFamily: 'Nunito' }}>🏷️ {z.name}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {onAssignRoom && (
+                          <button className="tq-btn" onClick={(e) => openAssignModal(e, room)} title={t('rooms.assignRoom')} style={{ width: 26, height: 26, borderRadius: 9, border: '1.5px solid var(--warm-border)', backgroundColor: 'var(--warm-bg-subtle)', color: 'var(--warm-text-muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </button>
+                        )}
+                        <button className="tq-btn" onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id, room.name); }} aria-label={`${t('common.delete')} ${roomDisplayName(room.name, room.roomType)}`} title={`${t('common.delete')} ${roomDisplayName(room.name, room.roomType)}`} style={{ width: 26, height: 26, borderRadius: 9, border: '1.5px solid var(--warm-danger-border)', backgroundColor: 'var(--warm-danger-bg)', color: 'var(--warm-danger)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <HealthBar value={rh} height={10} showLabel={false} />
+                <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+                  {room.tasks.map((tk) => {
+                    const badge = taskBadgeStyle(tk.health);
+                    return (
+                      <div key={tk.id} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px 4px 6px', borderRadius: 10, backgroundColor: badge.bg, color: badge.text, border: `1px solid ${badge.border}`, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 30, height: 30, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.6)', flexShrink: 0, marginLeft: -5 }}>
+                          <TaskIcon iconKey={tk.iconKey} size={21} />
+                        </span>
+                        <span>{taskName(tk.name, tk.translationKey)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          };
+
+          if (zones.length === 0) {
+            return (
+              <div style={GRID}>
+                {sortedRooms.map(renderRoom)}
+                {rooms.length === 0 && (
+                  <div className="tq-empty-state" style={{ gridColumn: '1 / -1' }}>
+                    <div className="tq-empty-state-title">{t('rooms.noRoomsYet')}</div>
+                    <div>{t('rooms.clickAddRoom')}</div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const sections = [
+            ...zones.map(z => ({ id: z.id as number | null, label: `🏷️ ${z.name}` })),
+            { id: null, label: t('rooms.noZone') },
+          ];
+          return (
+            <>
+              {sections.map(section => {
+                const sectionRooms = section.id === null
+                  ? sortedRooms.filter(r => !r.zoneId || !zones.find(z => z.id === r.zoneId))
+                  : sortedRooms.filter(r => r.zoneId === section.id);
+                if (sectionRooms.length === 0) return null;
+                return (
+                  <div key={section.id ?? 'unzoned'} style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--warm-text-muted)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, paddingLeft: 2 }}>
+                      {section.label}
+                    </div>
+                    <div style={GRID}>{sectionRooms.map(renderRoom)}</div>
+                  </div>
+                );
+              })}
+              {rooms.length === 0 && (
+                <div className="tq-empty-state">
+                  <div className="tq-empty-state-title">{t('rooms.noRoomsYet')}</div>
+                  <div>{t('rooms.clickAddRoom')}</div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Assign Room Modal */}

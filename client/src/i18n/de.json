@@ -534,7 +534,16 @@
       "modeCustom": "Benutzerdefiniert",
       "totalPercentage": "Gesamt: {total}%",
       "done": "erledigt",
-      "renameRoom": "Raum umbenennen"
+      "renameRoom": "Raum umbenennen",
+      "zones": "Zonen",
+      "createZone": "Zone erstellen",
+      "zoneName": "Zonenname",
+      "noZone": "Nicht zugewiesen",
+      "assignToZone": "Zone zuweisen",
+      "removeFromZone": "Aus Zone entfernen",
+      "deleteZone": "Zone löschen",
+      "zoneDeleted": "Zone gelöscht",
+      "zoneCreated": "Zone erstellt"
     },
     "common": {
       "save": "Speichern",

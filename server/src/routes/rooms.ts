@@ -302,9 +302,19 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id) as any;
   if (!room) return res.status(404).json({ error: 'Room not found' });
 
-  // Build SQL dynamically to handle assignedUserId: null (explicit unset) vs undefined (not provided)
+  // Build SQL dynamically to handle assignedUserId/zoneId: null (explicit unset) vs undefined (not provided)
   const params: any[] = [name, roomType, color, accentColor, sortOrder];
   let sql = 'UPDATE rooms SET name = COALESCE(?, name), roomType = COALESCE(?, roomType), color = COALESCE(?, color), accentColor = COALESCE(?, accentColor), sortOrder = COALESCE(?, sortOrder)';
+
+  if ('zoneId' in req.body) {
+    const zoneId = req.body.zoneId;
+    if (zoneId !== null && zoneId !== undefined) {
+      const zone = db.prepare('SELECT id FROM zones WHERE id = ?').get(zoneId);
+      if (!zone) return res.status(400).json({ error: 'Zone not found' });
+    }
+    sql += ', zoneId = ?';
+    params.push(req.body.zoneId ?? null);
+  }
 
   if ('assignedUserId' in req.body) {
     const assignedUserId = req.body.assignedUserId;

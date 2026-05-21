@@ -53,6 +53,13 @@ function runSchema(db: InstanceType<typeof Database>) {
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS zones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS rooms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -62,6 +69,7 @@ function runSchema(db: InstanceType<typeof Database>) {
       photoUrl TEXT,
       sortOrder INTEGER NOT NULL DEFAULT 0,
       assignedUserId INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      zoneId INTEGER REFERENCES zones(id) ON DELETE SET NULL,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 

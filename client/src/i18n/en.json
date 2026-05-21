@@ -534,7 +534,16 @@
       "modeCustom": "Custom",
       "totalPercentage": "Total: {total}%",
       "done": "done",
-      "renameRoom": "Rename room"
+      "renameRoom": "Rename room",
+      "zones": "Zones",
+      "createZone": "Create zone",
+      "zoneName": "Zone name",
+      "noZone": "Unassigned",
+      "assignToZone": "Assign to zone",
+      "removeFromZone": "Remove from zone",
+      "deleteZone": "Delete zone",
+      "zoneDeleted": "Zone deleted",
+      "zoneCreated": "Zone created"
     },
     "common": {
       "save": "Save",

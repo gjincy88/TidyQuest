@@ -403,6 +403,44 @@ curl -X GET http://localhost:3020/api/rooms/1/tasks \
 
 ---
 
+### Get Overdue Tasks
+
+Returns all non-seasonal, non-on-demand tasks with health ≤ 0 (i.e. overdue), sorted from most overdue to least.
+
+**Endpoint**: `GET /api/tasks/overdue`
+
+**Response** (200):
+```json
+[
+  {
+    "id": 4,
+    "name": "Vacuum Living Room",
+    "roomId": 2,
+    "roomName": "Living Room",
+    "effort": 3,
+    "frequencyDays": 7,
+    "lastCompletedAt": "2026-05-01T10:00:00.000Z",
+    "health": -20,
+    "daysOverdue": 13,
+    "assignedUsers": [
+      {
+        "userId": 1,
+        "displayName": "John Doe",
+        "avatarColor": "#F97316"
+      }
+    ]
+  }
+]
+```
+
+**cURL Example**:
+```bash
+curl -X GET http://localhost:3020/api/tasks/overdue \
+  -H "Authorization: Bearer <your-token>"
+```
+
+---
+
 ### Complete Task
 
 Mark a task as completed, earn coins, update streak.
