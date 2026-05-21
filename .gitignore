@@ -7,3 +7,4 @@ data/
 projet/
 PROGRESS.md
 .claude/skills/test-beta/.env
+__pycache__
