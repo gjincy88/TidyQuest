@@ -322,8 +322,21 @@ export function RoomDetail({ room, language, isAdmin, currentUserId, currentUser
 
     // Block if task frequency cooldown hasn't elapsed (health > 0 means not yet due)
     if (task.health > 0 && task.lastCompletedAt) {
-      const { text } = formatNextDue(task.lastCompletedAt, task.frequencyDays, t, language, task.health);
-      return { disabled: true, label: text };
+      // Allow early completion if the toggle is on AND last completion was on a previous calendar day
+      if (task.allowEarlyCompletion) {
+        const last = new Date(task.lastCompletedAt);
+        const today = new Date();
+        const lastStr = `${last.getFullYear()}-${String(last.getMonth()).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        if (lastStr < todayStr) {
+          // Different calendar day — allow despite health > 0
+        } else {
+          return { disabled: true, label: t('roomDetail.done') };
+        }
+      } else {
+        const { text } = formatNextDue(task.lastCompletedAt, task.frequencyDays, t, language, task.health);
+        return { disabled: true, label: text };
+      }
     }
 
     if (task.assignmentMode === 'shared' || task.assignmentMode === 'custom') {
